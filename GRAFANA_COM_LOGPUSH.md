@@ -125,7 +125,7 @@ query_range:
 
 ### 5. Import this dashboard
 
-In Grafana: **Dashboards > New > Import**, paste the dashboard ID, and select your Loki datasource.
+In Grafana: **Dashboards > New > Import**, enter ID `24873`, and select your Loki datasource.
 
 ## Performance Design
 

@@ -39,7 +39,11 @@ Both dashboards are available as importable JSON and as Python generators for cu
 
 ### Or install from Grafana.com
 
-<!-- TODO: Add Grafana.com dashboard IDs once published -->
+1. In Grafana, go to **Dashboards > New > Import**
+2. Enter the dashboard ID:
+   - **Cloudflare Logpush**: `24873` &mdash; [grafana.com/grafana/dashboards/24873](https://grafana.com/grafana/dashboards/24873)
+   - **Cloudflare Tunnel (cloudflared)**: `24874` &mdash; [grafana.com/grafana/dashboards/24874](https://grafana.com/grafana/dashboards/24874)
+3. Select your datasource and click **Import**
 
 ---
 

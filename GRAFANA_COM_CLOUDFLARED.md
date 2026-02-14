@@ -110,7 +110,7 @@ scrape_configs:
 
 ### 3. Import this dashboard
 
-In Grafana: **Dashboards > New > Import**, paste the dashboard ID, and select your Prometheus datasource.
+In Grafana: **Dashboards > New > Import**, enter ID `24874`, and select your Prometheus datasource.
 
 ## Notes
 
