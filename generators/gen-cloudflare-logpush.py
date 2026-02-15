@@ -17,10 +17,51 @@ if EXPORT:
 else:
     DS = {"type": "loki", "uid": "loki"}
 
+OPEN_ROWS = {"Overview"}  # Rows to keep expanded; all others collapse
+
 def row(id, title, y, desc=""):
     r = {"collapsed": False, "gridPos": {"h": 1, "w": 24, "x": 0, "y": y}, "id": id, "panels": [], "title": title, "type": "row"}
     if desc: r["description"] = desc
     return r
+
+def collapse_rows(panels):
+    """Nest child panels inside collapsed rows.
+
+    Grafana only defers queries for panels inside a collapsed row's 'panels'
+    array. Panels that are siblings of a non-collapsed row execute immediately.
+    """
+    result = []
+    current_row = None
+    children = []
+    for p in panels:
+        if p.get("type") == "row":
+            # Flush previous row
+            if current_row is not None:
+                if current_row["title"] not in OPEN_ROWS:
+                    current_row["collapsed"] = True
+                    current_row["panels"] = children
+                    result.append(current_row)
+                else:
+                    result.append(current_row)
+                    result.extend(children)
+            else:
+                result.extend(children)
+            current_row = p
+            children = []
+        else:
+            children.append(p)
+    # Flush last row
+    if current_row is not None:
+        if current_row["title"] not in OPEN_ROWS:
+            current_row["collapsed"] = True
+            current_row["panels"] = children
+            result.append(current_row)
+        else:
+            result.append(current_row)
+            result.extend(children)
+    else:
+        result.extend(children)
+    return result
 
 def stat_panel(id, title, expr, legend, x, y, w=6, unit="short", thresholds=None, instant=True, desc=""):
     th = thresholds or [{"color": "green", "value": None}]
@@ -811,7 +852,7 @@ dashboard.update({
     "id": None,
     "links": [],
     "liveNow": False,
-    "panels": panels,
+    "panels": collapse_rows(panels),
     "schemaVersion": 39,
     "tags": ["cloudflare", "logpush", "loki", "security"],
     "templating": {"list": [
