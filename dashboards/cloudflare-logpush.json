@@ -150,7 +150,7 @@
         },
         "textMode": "auto"
       },
-      "title": "Requests (5m)",
+      "title": "Requests",
       "type": "stat",
       "targets": [
         {
@@ -158,14 +158,14 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [5m]))",
+          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__range]))",
           "legendFormat": "Requests",
           "refId": "A",
           "queryType": "instant",
           "instant": true
         }
       ],
-      "description": "Total HTTP requests across all zones in the last 5 minutes."
+      "description": "Total HTTP requests across all zones over the selected time range."
     },
     {
       "datasource": {
@@ -230,14 +230,14 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseStatus, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | EdgeResponseStatus >= 500 [5m])) / sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [5m])) * 100",
+          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseStatus, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | EdgeResponseStatus >= 500 [$__range])) / sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__range])) * 100",
           "legendFormat": "5xx %",
           "refId": "A",
           "queryType": "instant",
           "instant": true
         }
       ],
-      "description": "Percentage of requests returning 5xx status codes (server errors) in the last 5 minutes."
+      "description": "Percentage of requests returning 5xx status codes (server errors) over the selected time range."
     },
     {
       "datasource": {
@@ -302,14 +302,14 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json CacheCacheStatus, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | CacheCacheStatus = `hit` [5m])) / sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json CacheCacheStatus, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | CacheCacheStatus != `` [5m])) * 100",
+          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json CacheCacheStatus, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | CacheCacheStatus = `hit` [$__range])) / sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json CacheCacheStatus, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | CacheCacheStatus != `` [$__range])) * 100",
           "legendFormat": "Cache Hit %",
           "refId": "A",
           "queryType": "instant",
           "instant": true
         }
       ],
-      "description": "Ratio of cache hits to all cacheable requests in the last 5 minutes. Higher is better."
+      "description": "Ratio of cache hits to all cacheable requests over the selected time range. Higher is better."
     },
     {
       "datasource": {
@@ -364,7 +364,7 @@
         },
         "textMode": "auto"
       },
-      "title": "Firewall Events (5m)",
+      "title": "Firewall Events",
       "type": "stat",
       "targets": [
         {
@@ -372,14 +372,14 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"firewall_events\"} | json ClientIP, ClientRequestHost | ClientRequestHost =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientIP =~ \"$ip\" [5m]))",
+          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"firewall_events\"} | json ClientIP, ClientRequestHost | ClientRequestHost =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientIP =~ \"$ip\" [$__range]))",
           "legendFormat": "Events",
           "refId": "A",
           "queryType": "instant",
           "instant": true
         }
       ],
-      "description": "Total firewall events (blocks, challenges, logs) across all zones in the last 5 minutes."
+      "description": "Total firewall events (blocks, challenges, logs) across all zones over the selected time range."
     },
     {
       "datasource": {
@@ -434,7 +434,7 @@
         },
         "textMode": "auto"
       },
-      "title": "Leaked Credentials (5m)",
+      "title": "Leaked Credentials",
       "type": "stat",
       "targets": [
         {
@@ -442,14 +442,14 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, LeakedCredentialCheckResult, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | LeakedCredentialCheckResult != `` | LeakedCredentialCheckResult != `clean` [5m]))",
+          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, LeakedCredentialCheckResult, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | LeakedCredentialCheckResult != `` | LeakedCredentialCheckResult != `clean` [$__range]))",
           "legendFormat": "Leaked",
           "refId": "A",
           "queryType": "instant",
           "instant": true
         }
       ],
-      "description": "Requests where Cloudflare detected leaked credentials (username/password) in the last 5 minutes. Excludes 'clean' results."
+      "description": "Requests where Cloudflare detected leaked credentials (username/password) over the selected time range. Excludes 'clean' results."
     },
     {
       "datasource": {
@@ -504,7 +504,7 @@
         },
         "textMode": "auto"
       },
-      "title": "High Risk WAF (score<20, 5m)",
+      "title": "High Risk WAF (score<20)",
       "type": "stat",
       "targets": [
         {
@@ -512,14 +512,14 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, WAFAttackScore, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | WAFAttackScore > 0 | WAFAttackScore <= 20 [5m]))",
+          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, WAFAttackScore, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | WAFAttackScore > 0 | WAFAttackScore <= 20 [$__range]))",
           "legendFormat": "Attacks",
           "refId": "A",
           "queryType": "instant",
           "instant": true
         }
       ],
-      "description": "Requests with WAF attack score 1-20 (high risk of being an attack: SQLi, XSS, or RCE) in the last 5 minutes."
+      "description": "Requests with WAF attack score 1-20 (high risk of being an attack: SQLi, XSS, or RCE) over the selected time range."
     },
     {
       "datasource": {
@@ -584,14 +584,14 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotScore, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotScore > 0 | BotScore < 30 [5m])) / sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotScore, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotScore > 0 [5m])) * 100",
+          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotScore, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotScore > 0 | BotScore < 30 [$__range])) / sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotScore, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotScore > 0 [$__range])) * 100",
           "legendFormat": "Bot %",
           "refId": "A",
           "queryType": "instant",
           "instant": true
         }
       ],
-      "description": "Percentage of traffic classified as likely bot (BotScore 1-29) by Cloudflare Bot Management in the last 5 minutes."
+      "description": "Percentage of traffic classified as likely bot (BotScore 1-29) by Cloudflare Bot Management over the selected time range."
     },
     {
       "datasource": {
@@ -646,7 +646,7 @@
         },
         "textMode": "auto"
       },
-      "title": "Worker Errors (5m)",
+      "title": "Worker Errors",
       "type": "stat",
       "targets": [
         {
@@ -654,14 +654,14 @@
             "type": "loki",
             "uid": "${DS_LOKI}"
           },
-          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"workers_trace_events\"} | json Outcome | Outcome != `ok` [5m]))",
+          "expr": "sum(count_over_time({job=\"cloudflare-logpush\", dataset=\"workers_trace_events\"} | json Outcome | Outcome != `ok` [$__range]))",
           "legendFormat": "Errors",
           "refId": "A",
           "queryType": "instant",
           "instant": true
         }
       ],
-      "description": "Workers execution failures (exceptions, CPU exceeded, memory exceeded) in the last 5 minutes."
+      "description": "Workers execution failures (exceptions, CPU exceeded, memory exceeded) over the selected time range."
     },
     {
       "collapsed": false,

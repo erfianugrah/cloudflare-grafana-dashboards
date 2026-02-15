@@ -236,47 +236,47 @@ pid = 1
 # ============================================================
 panels.append(row(pid, "Overview", y)); pid += 1; y += 1
 
-panels.append(stat_panel(pid, "Requests (5m)",
-    f"sum(count_over_time({http()} [5m]))", "Requests", 0, y,
+panels.append(stat_panel(pid, "Requests",
+    f"sum(count_over_time({http()} [$__range]))", "Requests", 0, y,
     thresholds=[{"color": "green", "value": None}, {"color": "yellow", "value": 1000}, {"color": "red", "value": 10000}],
-    desc="Total HTTP requests across all zones in the last 5 minutes.")); pid += 1
+    desc="Total HTTP requests across all zones over the selected time range.")); pid += 1
 
 panels.append(stat_panel(pid, "Error Rate % (5xx)",
-    f"sum(count_over_time({http('EdgeResponseStatus')} | EdgeResponseStatus >= 500 [5m])) / sum(count_over_time({http()} [5m])) * 100", "5xx %", 6, y,
+    f"sum(count_over_time({http('EdgeResponseStatus')} | EdgeResponseStatus >= 500 [$__range])) / sum(count_over_time({http()} [$__range])) * 100", "5xx %", 6, y,
     unit="percent", thresholds=[{"color": "green", "value": None}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}],
-    desc="Percentage of requests returning 5xx status codes (server errors) in the last 5 minutes.")); pid += 1
+    desc="Percentage of requests returning 5xx status codes (server errors) over the selected time range.")); pid += 1
 
 panels.append(stat_panel(pid, "Cache Hit Ratio %",
-    f"sum(count_over_time({http('CacheCacheStatus')} | CacheCacheStatus = `hit` [5m])) / sum(count_over_time({http('CacheCacheStatus')} | CacheCacheStatus != `` [5m])) * 100", "Cache Hit %", 12, y,
+    f"sum(count_over_time({http('CacheCacheStatus')} | CacheCacheStatus = `hit` [$__range])) / sum(count_over_time({http('CacheCacheStatus')} | CacheCacheStatus != `` [$__range])) * 100", "Cache Hit %", 12, y,
     unit="percent", thresholds=[{"color": "red", "value": None}, {"color": "yellow", "value": 50}, {"color": "green", "value": 80}],
-    desc="Ratio of cache hits to all cacheable requests in the last 5 minutes. Higher is better.")); pid += 1
+    desc="Ratio of cache hits to all cacheable requests over the selected time range. Higher is better.")); pid += 1
 
-panels.append(stat_panel(pid, "Firewall Events (5m)",
-    f"sum(count_over_time({fw()} [5m]))", "Events", 18, y,
+panels.append(stat_panel(pid, "Firewall Events",
+    f"sum(count_over_time({fw()} [$__range]))", "Events", 18, y,
     thresholds=[{"color": "green", "value": None}, {"color": "yellow", "value": 10}, {"color": "red", "value": 50}],
-    desc="Total firewall events (blocks, challenges, logs) across all zones in the last 5 minutes.")); pid += 1
+    desc="Total firewall events (blocks, challenges, logs) across all zones over the selected time range.")); pid += 1
 y += 4
 
 # Second overview row - more stats
-panels.append(stat_panel(pid, "Leaked Credentials (5m)",
-    f'sum(count_over_time({http("LeakedCredentialCheckResult")} | LeakedCredentialCheckResult != `` | LeakedCredentialCheckResult != `clean` [5m]))', "Leaked", 0, y,
+panels.append(stat_panel(pid, "Leaked Credentials",
+    f'sum(count_over_time({http("LeakedCredentialCheckResult")} | LeakedCredentialCheckResult != `` | LeakedCredentialCheckResult != `clean` [$__range]))', "Leaked", 0, y,
     thresholds=[{"color": "green", "value": None}, {"color": "yellow", "value": 1}, {"color": "red", "value": 10}],
-    desc="Requests where Cloudflare detected leaked credentials (username/password) in the last 5 minutes. Excludes 'clean' results.")); pid += 1
+    desc="Requests where Cloudflare detected leaked credentials (username/password) over the selected time range. Excludes 'clean' results.")); pid += 1
 
-panels.append(stat_panel(pid, "High Risk WAF (score<20, 5m)",
-    f"sum(count_over_time({http('WAFAttackScore')} | WAFAttackScore > 0 | WAFAttackScore <= 20 [5m]))", "Attacks", 6, y,
+panels.append(stat_panel(pid, "High Risk WAF (score<20)",
+    f"sum(count_over_time({http('WAFAttackScore')} | WAFAttackScore > 0 | WAFAttackScore <= 20 [$__range]))", "Attacks", 6, y,
     thresholds=[{"color": "green", "value": None}, {"color": "yellow", "value": 5}, {"color": "red", "value": 20}],
-    desc="Requests with WAF attack score 1-20 (high risk of being an attack: SQLi, XSS, or RCE) in the last 5 minutes.")); pid += 1
+    desc="Requests with WAF attack score 1-20 (high risk of being an attack: SQLi, XSS, or RCE) over the selected time range.")); pid += 1
 
 panels.append(stat_panel(pid, "Bot Traffic % (score<30)",
-    f"sum(count_over_time({http('BotScore')} | BotScore > 0 | BotScore < 30 [5m])) / sum(count_over_time({http('BotScore')} | BotScore > 0 [5m])) * 100", "Bot %", 12, y,
+    f"sum(count_over_time({http('BotScore')} | BotScore > 0 | BotScore < 30 [$__range])) / sum(count_over_time({http('BotScore')} | BotScore > 0 [$__range])) * 100", "Bot %", 12, y,
     unit="percent", thresholds=[{"color": "green", "value": None}, {"color": "yellow", "value": 20}, {"color": "red", "value": 50}],
-    desc="Percentage of traffic classified as likely bot (BotScore 1-29) by Cloudflare Bot Management in the last 5 minutes.")); pid += 1
+    desc="Percentage of traffic classified as likely bot (BotScore 1-29) by Cloudflare Bot Management over the selected time range.")); pid += 1
 
-panels.append(stat_panel(pid, "Worker Errors (5m)",
-    f'sum(count_over_time({wk("Outcome")} | Outcome != `ok` [5m]))', "Errors", 18, y,
+panels.append(stat_panel(pid, "Worker Errors",
+    f'sum(count_over_time({wk("Outcome")} | Outcome != `ok` [$__range]))', "Errors", 18, y,
     thresholds=[{"color": "green", "value": None}, {"color": "yellow", "value": 1}, {"color": "red", "value": 10}],
-    desc="Workers execution failures (exceptions, CPU exceeded, memory exceeded) in the last 5 minutes.")); pid += 1
+    desc="Workers execution failures (exceptions, CPU exceeded, memory exceeded) over the selected time range.")); pid += 1
 y += 4
 
 # ============================================================
