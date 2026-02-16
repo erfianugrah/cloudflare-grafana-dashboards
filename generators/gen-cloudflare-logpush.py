@@ -7,7 +7,7 @@ Usage:
 """
 import json, sys
 from country_codes import COUNTRY_NAMES
-from asn_names import ASN_NAMES
+
 
 EXPORT = "--export" in sys.argv
 
@@ -189,17 +189,94 @@ def country_value_mappings_override(column_name):
         {"id": "mappings", "value": [{"type": "value", "options": value_map}]}
     ]}
 
-def asn_name_overrides():
-    """Generate displayName overrides to rename ASN numbers to AS{num} ({name}) in timeseries legends."""
-    return [{"matcher": {"id": "byName", "options": str(asn)}, "properties": [{"id": "displayName", "value": f"AS{asn} ({name})"}]}
-            for asn, name in ASN_NAMES.items()]
+def asn_lookup_table_panel(id, title, http_expr, x, y, w=12, h=8, desc=""):
+    """Table panel that joins HTTP ClientASN data with firewall_events ClientASNDescription for live ASN name resolution.
 
-def asn_value_mappings_override(column_name):
-    """Generate a table column override that maps ASN numbers to AS{num} ({name}) via value mappings."""
-    value_map = {str(asn): {"text": f"AS{asn} ({name})", "index": i} for i, (asn, name) in enumerate(ASN_NAMES.items())}
-    return {"matcher": {"id": "byName", "options": column_name}, "properties": [
-        {"id": "mappings", "value": [{"type": "value", "options": value_map}]}
-    ]}
+    Query A: HTTP metric grouped by ClientASN (the actual data).
+    Query B: firewall_events lookup mapping ClientASN -> ClientASNDescription.
+    Transformations merge on ClientASN and display the resolved name.
+    """
+    fw_lookup_expr = f'topk(1, sum by (ClientASN, ClientASNDescription) (count_over_time({fw("ClientASN", "ClientASNDescription")} [$__range])))'
+    overrides = [
+        {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [
+            {"id": "custom.width", "value": 100},
+            {"id": "displayName", "value": "Count"},
+            {"id": "custom.cellOptions", "value": {"mode": "basic", "type": "gauge", "valueDisplayMode": "text"}},
+        ]},
+        {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.hidden", "value": True}]},
+        {"matcher": {"id": "byName", "options": "Value #B"}, "properties": [{"id": "custom.hidden", "value": True}]},
+    ]
+    p = {
+        "datasource": DS,
+        "fieldConfig": {
+            "defaults": {
+                "color": {"mode": "palette-classic"},
+                "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": False},
+                "mappings": [],
+                "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": None}]},
+            },
+            "overrides": overrides
+        },
+        "gridPos": {"h": h, "w": w, "x": x, "y": y},
+        "id": id,
+        "options": {"showHeader": True, "cellHeight": "sm", "footer": {"show": False}, "sortBy": [{"desc": True, "displayName": "Count"}]},
+        "title": title,
+        "type": "table",
+        "transformations": [
+            {"id": "merge", "options": {}},
+            {"id": "organize", "options": {
+                "excludeByName": {"Time": True, "Value #B": True},
+                "indexByName": {"ClientASN": 0, "ClientASNDescription": 1, "Value #A": 2},
+                "renameByName": {"ClientASNDescription": "ASN Name"},
+            }},
+            {"id": "sortBy", "options": {"sort": [{"field": "Value #A", "desc": True}]}},
+        ],
+        "targets": [
+            {"datasource": DS, "expr": http_expr, "legendFormat": "{{ClientASN}}", "refId": "A", "instant": True, "format": "table"},
+            {"datasource": DS, "expr": fw_lookup_expr, "legendFormat": "{{ClientASN}}", "refId": "B", "instant": True, "format": "table"},
+        ]
+    }
+    if desc: p["description"] = desc
+    return p
+
+def fw_asn_table_panel(id, title, fw_expr, x, y, w=8, h=8, desc=""):
+    """Table panel for firewall ASN data using ClientASNDescription directly from firewall_events."""
+    overrides = [
+        {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [
+            {"id": "custom.width", "value": 100},
+            {"id": "displayName", "value": "Count"},
+            {"id": "custom.cellOptions", "value": {"mode": "basic", "type": "gauge", "valueDisplayMode": "text"}},
+        ]},
+        {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.hidden", "value": True}]},
+    ]
+    p = {
+        "datasource": DS,
+        "fieldConfig": {
+            "defaults": {
+                "color": {"mode": "palette-classic"},
+                "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": False},
+                "mappings": [],
+                "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": None}]},
+            },
+            "overrides": overrides
+        },
+        "gridPos": {"h": h, "w": w, "x": x, "y": y},
+        "id": id,
+        "options": {"showHeader": True, "cellHeight": "sm", "footer": {"show": False}, "sortBy": [{"desc": True, "displayName": "Count"}]},
+        "title": title,
+        "type": "table",
+        "transformations": [
+            {"id": "organize", "options": {
+                "excludeByName": {"Time": True},
+                "indexByName": {"ClientASN": 0, "ClientASNDescription": 1, "Value #A": 2},
+                "renameByName": {"ClientASNDescription": "ASN Name"},
+            }},
+            {"id": "sortBy", "options": {"sort": [{"field": "Value #A", "desc": True}]}},
+        ],
+        "targets": [{"datasource": DS, "expr": fw_expr, "legendFormat": "{{ClientASN}}", "refId": "A", "instant": True, "format": "table"}]
+    }
+    if desc: p["description"] = desc
+    return p
 
 def geomap_panel(id, title, expr, lookup_field, x, y, w=16, h=10, gazetteer="public/gazetteer/countries.json", desc=""):
     """Geomap panel using lookup mode to resolve country/state codes to coordinates."""
@@ -395,11 +472,10 @@ panels.append(ts_panel(pid, "Requests by Edge Colo (Top 10)", [
     t(f"topk(10, sum by (EdgeColoCode) (count_over_time({http()} [$__auto])))", "{{EdgeColoCode}}")
 ], 0, y, desc="Top 10 Cloudflare edge data centers (colos) serving requests. IATA airport codes (e.g., SIN=Singapore, NRT=Tokyo).")); pid += 1
 
-panels.append(table_panel(pid, "Top Client ASNs",
+panels.append(asn_lookup_table_panel(pid, "Top Client ASNs",
     f"topk(25, sum by (ClientASN) (count_over_time({http()} [$__range])))",
-    "{{ClientASN}}", 12, y, w=12,
-    extra_overrides=[asn_value_mappings_override("ClientASN")],
-    desc="Top 25 Autonomous System Numbers by request count. ASN names resolved via Cloudflare Radar API.")); pid += 1
+    12, y, w=12,
+    desc="Top 25 Autonomous System Numbers by request count. ASN names resolved live from firewall_events ClientASNDescription field, with static fallback.")); pid += 1
 y += 8
 
 panels.append(bar_panel(pid, "Client Device Type", [
@@ -545,7 +621,7 @@ panels.append(ts_panel(pid, "Edge TTFB by ASN (avg ms, Top 10)", [
 ], 0, y, unit="ms", stack=False, fill=10, legend_calcs=["mean", "lastNotNull"],
     desc="Average TTFB for the top 10 ASNs by latency. Identifies networks with consistently slow end-to-end performance.")); pid += 1
 
-panels.append(ts_panel(pid, "Edge \u2192 Origin by ASN (avg ms, Top 10)", [
+panels.append(ts_panel(pid, "Edge → Origin by ASN (avg ms, Top 10)", [
     t(f"topk(10, avg by (ClientASN) (avg_over_time({http('OriginResponseDurationMs')} | unwrap OriginResponseDurationMs [$__auto])))", "AS{{ClientASN}}")
 ], 12, y, unit="ms", stack=False, fill=10, legend_calcs=["mean", "lastNotNull"],
     desc="Average origin response duration for top 10 ASNs. High values here may indicate origin routing issues or geographic distance to origin.")); pid += 1
@@ -694,11 +770,10 @@ panels.append(table_panel(pid, "Top Attacking User Agents",
     "{{UserAgent}}", 8, y, w=8,
     desc="User-Agent strings triggering the most firewall events. Common attack tools use distinctive UA strings.")); pid += 1
 
-panels.append(table_panel(pid, "Top Attacking ASNs",
-    f"topk(20, sum by (ClientASN) (count_over_time({fw('ClientASN')} [$__range])))",
-    "{{ClientASN}}", 16, y, w=8,
-    extra_overrides=[asn_value_mappings_override("ClientASN")],
-    desc="Autonomous System Numbers generating the most firewall events. High-volume ASNs may warrant ASN-level blocking.")); pid += 1
+panels.append(fw_asn_table_panel(pid, "Top Attacking ASNs",
+    f"topk(20, sum by (ClientASN, ClientASNDescription) (count_over_time({fw('ClientASN', 'ClientASNDescription')} [$__range])))",
+    16, y, w=8,
+    desc="Autonomous System Numbers generating the most firewall events. ASN names resolved live from Cloudflare ClientASNDescription field.")); pid += 1
 y += 8
 
 panels.append(bar_panel(pid, "Firewall Events by HTTP Method", [

@@ -474,8 +474,6 @@ python3 gen-cloudflare-logpush.py --export
 | `gen-cloudflared.py` | Cloudflare Tunnel dashboard generator (Prometheus) |
 | `gen-cloudflare-logpush.py` | Cloudflare Logpush dashboard generator (Loki) |
 | `country_codes.py` | ISO 3166-1 Alpha-2 country code mapping (249 entries) |
-| `asn_names.py` | ASN number to name mapping (204 entries, sourced from Cloudflare Radar) |
-| `fetch_asn_names.py` | Script to refresh ASN names by querying Loki for unique ASNs and resolving via Cloudflare Radar API |
 
 ### Customization
 
