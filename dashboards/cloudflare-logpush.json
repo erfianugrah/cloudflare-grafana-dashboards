@@ -1510,7 +1510,7 @@
               }
             ]
           },
-          "title": "Error Rate by Path (4xx+5xx)",
+          "title": "Top Error Paths (4xx+5xx)",
           "type": "table",
           "transformations": [
             {
@@ -6242,7 +6242,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, ClientTCPRTTMs, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap ClientTCPRTTMs [$__auto]))",
+              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, ClientTCPRTTMs, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap ClientTCPRTTMs [$__auto]))",
               "legendFormat": "Client \u2192 Edge (TCP RTT)",
               "refId": "A",
               "queryType": "range"
@@ -6252,7 +6252,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, ClientTCPRTTMs, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | EdgeTimeToFirstByteMs < 65535 | label_format EdgeProcessingMs=\"{{ subf .EdgeTimeToFirstByteMs .OriginResponseDurationMs }}\" | unwrap EdgeProcessingMs [$__auto]))",
               "legendFormat": "Edge Processing",
               "refId": "B",
               "queryType": "range"
@@ -6262,13 +6262,13 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, ClientTCPRTTMs, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto]))",
               "legendFormat": "Edge \u2192 Origin (total)",
               "refId": "C",
               "queryType": "range"
             }
           ],
-          "description": "Stacked breakdown of where request time is spent. Client\u2192Edge = TCP RTT. Edge Processing = TTFB minus origin duration (WAF, bot checks, cache lookup). Edge\u2192Origin = total origin fetch time."
+          "description": "Stacked breakdown of where request time is spent. Client\u2192Edge = TCP RTT. Edge Processing = TTFB minus origin duration (WAF, bot checks, cache lookup), computed per-request via label_format. Excludes requests where EdgeTimeToFirstByteMs hit the uint16 cap (65535ms). Edge\u2192Origin = origin fetch time (cache hits excluded)."
         },
         {
           "datasource": {
@@ -6676,7 +6676,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto]))",
               "legendFormat": "Avg",
               "refId": "A",
               "queryType": "range"
@@ -6686,7 +6686,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(quantile_over_time(0.50, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(quantile_over_time(0.50, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto]))",
               "legendFormat": "p50 (median)",
               "refId": "B",
               "queryType": "range"
@@ -6696,7 +6696,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(quantile_over_time(0.75, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(quantile_over_time(0.75, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto]))",
               "legendFormat": "p75",
               "refId": "C",
               "queryType": "range"
@@ -6706,7 +6706,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(quantile_over_time(0.90, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(quantile_over_time(0.90, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto]))",
               "legendFormat": "p90",
               "refId": "D",
               "queryType": "range"
@@ -6716,7 +6716,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(quantile_over_time(0.95, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(quantile_over_time(0.95, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto]))",
               "legendFormat": "p95",
               "refId": "E",
               "queryType": "range"
@@ -6726,13 +6726,13 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(quantile_over_time(0.99, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(quantile_over_time(0.99, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto]))",
               "legendFormat": "p99",
               "refId": "F",
               "queryType": "range"
             }
           ],
-          "description": "Total time for edge-to-origin request cycle: DNS resolution, TCP/TLS handshake, request send, and response receive. Includes Argo Smart Routing and Tiered Cache."
+          "description": "Total time for edge-to-origin request cycle: DNS resolution, TCP/TLS handshake, request send, and response receive. Includes Argo Smart Routing and Tiered Cache. Excludes cache hits (OriginResponseDurationMs=0)."
         },
         {
           "datasource": {
@@ -7140,7 +7140,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | EdgeTimeToFirstByteMs < 65535 | label_format EdgeProcessingMs=\"{{ subf .EdgeTimeToFirstByteMs .OriginResponseDurationMs }}\" | unwrap EdgeProcessingMs [$__auto]))",
               "legendFormat": "Avg",
               "refId": "A",
               "queryType": "range"
@@ -7150,7 +7150,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(quantile_over_time(0.50, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(quantile_over_time(0.50, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(quantile_over_time(0.50, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | EdgeTimeToFirstByteMs < 65535 | label_format EdgeProcessingMs=\"{{ subf .EdgeTimeToFirstByteMs .OriginResponseDurationMs }}\" | unwrap EdgeProcessingMs [$__auto]))",
               "legendFormat": "p50 (median)",
               "refId": "B",
               "queryType": "range"
@@ -7160,7 +7160,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(quantile_over_time(0.75, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(quantile_over_time(0.75, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(quantile_over_time(0.75, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | EdgeTimeToFirstByteMs < 65535 | label_format EdgeProcessingMs=\"{{ subf .EdgeTimeToFirstByteMs .OriginResponseDurationMs }}\" | unwrap EdgeProcessingMs [$__auto]))",
               "legendFormat": "p75",
               "refId": "C",
               "queryType": "range"
@@ -7170,7 +7170,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(quantile_over_time(0.90, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(quantile_over_time(0.90, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(quantile_over_time(0.90, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | EdgeTimeToFirstByteMs < 65535 | label_format EdgeProcessingMs=\"{{ subf .EdgeTimeToFirstByteMs .OriginResponseDurationMs }}\" | unwrap EdgeProcessingMs [$__auto]))",
               "legendFormat": "p90",
               "refId": "D",
               "queryType": "range"
@@ -7180,7 +7180,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(quantile_over_time(0.95, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(quantile_over_time(0.95, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(quantile_over_time(0.95, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | EdgeTimeToFirstByteMs < 65535 | label_format EdgeProcessingMs=\"{{ subf .EdgeTimeToFirstByteMs .OriginResponseDurationMs }}\" | unwrap EdgeProcessingMs [$__auto]))",
               "legendFormat": "p95",
               "refId": "E",
               "queryType": "range"
@@ -7190,13 +7190,13 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(quantile_over_time(0.99, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(quantile_over_time(0.99, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "sum(quantile_over_time(0.99, {job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeTimeToFirstByteMs, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | EdgeTimeToFirstByteMs < 65535 | label_format EdgeProcessingMs=\"{{ subf .EdgeTimeToFirstByteMs .OriginResponseDurationMs }}\" | unwrap EdgeProcessingMs [$__auto]))",
               "legendFormat": "p99",
               "refId": "F",
               "queryType": "range"
             }
           ],
-          "description": "Derived metric: EdgeTimeToFirstByteMs minus OriginResponseDurationMs. Represents time spent on WAF rules, bot detection, cache lookup, and request routing at the edge."
+          "description": "Per-request edge processing time: EdgeTimeToFirstByteMs minus OriginResponseDurationMs, computed per log line via label_format. Excludes requests where TTFB hit the uint16 cap (65535ms). Represents time spent on WAF rules, bot detection, cache lookup, and request routing at the edge."
         },
         {
           "datasource": {
@@ -7357,7 +7357,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginDNSResponseTimeMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginDNSResponseTimeMs [$__auto]))",
+              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginDNSResponseTimeMs, OriginRequestHeaderSendDurationMs, OriginResponseDurationMs, OriginResponseHeaderReceiveDurationMs, OriginTCPHandshakeDurationMs, OriginTLSHandshakeDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginDNSResponseTimeMs [$__auto]))",
               "legendFormat": "DNS Lookup",
               "refId": "A",
               "queryType": "range"
@@ -7367,7 +7367,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginTCPHandshakeDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginTCPHandshakeDurationMs [$__auto]))",
+              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginDNSResponseTimeMs, OriginRequestHeaderSendDurationMs, OriginResponseDurationMs, OriginResponseHeaderReceiveDurationMs, OriginTCPHandshakeDurationMs, OriginTLSHandshakeDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginTCPHandshakeDurationMs [$__auto]))",
               "legendFormat": "TCP Handshake",
               "refId": "B",
               "queryType": "range"
@@ -7377,7 +7377,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginTLSHandshakeDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginTLSHandshakeDurationMs [$__auto]))",
+              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginDNSResponseTimeMs, OriginRequestHeaderSendDurationMs, OriginResponseDurationMs, OriginResponseHeaderReceiveDurationMs, OriginTCPHandshakeDurationMs, OriginTLSHandshakeDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginTLSHandshakeDurationMs [$__auto]))",
               "legendFormat": "TLS Handshake",
               "refId": "C",
               "queryType": "range"
@@ -7387,7 +7387,7 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginRequestHeaderSendDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginRequestHeaderSendDurationMs [$__auto]))",
+              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginDNSResponseTimeMs, OriginRequestHeaderSendDurationMs, OriginResponseDurationMs, OriginResponseHeaderReceiveDurationMs, OriginTCPHandshakeDurationMs, OriginTLSHandshakeDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginRequestHeaderSendDurationMs [$__auto]))",
               "legendFormat": "Header Send",
               "refId": "D",
               "queryType": "range"
@@ -7397,13 +7397,13 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseHeaderReceiveDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseHeaderReceiveDurationMs [$__auto]))",
+              "expr": "sum(avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginDNSResponseTimeMs, OriginRequestHeaderSendDurationMs, OriginResponseDurationMs, OriginResponseHeaderReceiveDurationMs, OriginTCPHandshakeDurationMs, OriginTLSHandshakeDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginResponseHeaderReceiveDurationMs [$__auto]))",
               "legendFormat": "Header Receive",
               "refId": "E",
               "queryType": "range"
             }
           ],
-          "description": "Stacked sub-components of edge-to-origin time: DNS resolution, TCP handshake, TLS handshake, request header send, and response header receive."
+          "description": "Stacked sub-components of edge-to-origin time: DNS resolution, TCP handshake, TLS handshake, request header send, and response header receive. Excludes cache hits (OriginResponseDurationMs=0)."
         },
         {
           "datasource": {
@@ -7488,13 +7488,13 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "avg by (ClientRequestHost) (avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto]))",
+              "expr": "avg by (ClientRequestHost) (avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto]))",
               "legendFormat": "{{ClientRequestHost}}",
               "refId": "A",
               "queryType": "range"
             }
           ],
-          "description": "Average origin response duration per zone. Helps identify which hosts have slow origin servers."
+          "description": "Average origin response duration per zone (cache hits excluded). Helps identify which hosts have slow origin servers."
         },
         {
           "datasource": {
@@ -7844,7 +7844,7 @@
               "sort": "desc"
             }
           },
-          "title": "Edge \u2192 Origin by ASN (avg ms, Top 10)",
+          "title": "Origin Response by Client ASN (avg ms, Top 10)",
           "type": "timeseries",
           "targets": [
             {
@@ -7852,13 +7852,13 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "topk(10, avg by (ClientASN) (avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap OriginResponseDurationMs [$__auto])))",
+              "expr": "topk(10, avg by (ClientASN) (avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, OriginResponseDurationMs, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto])))",
               "legendFormat": "AS{{ClientASN}}",
               "refId": "A",
               "queryType": "range"
             }
           ],
-          "description": "Average origin response duration for top 10 ASNs. High values here may indicate origin routing issues or geographic distance to origin."
+          "description": "Average origin response duration grouped by the requesting client's ASN (cache hits excluded). No OriginASN field exists in Cloudflare Logpush. High values for specific ASNs may indicate those networks generate more cache misses or request heavier endpoints."
         },
         {
           "datasource": {
@@ -8060,13 +8060,13 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "topk(10, sum by (EdgeResponseStatus) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseStatus, JA4, OriginResponseStatus, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseStatus > 0 | EdgeResponseStatus >= 400 [$__auto])))",
-              "legendFormat": "edge={{EdgeResponseStatus}}",
+              "expr": "topk(10, sum by (EdgeResponseStatus, OriginResponseStatus) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseStatus, JA4, OriginResponseStatus, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseStatus > 0 | EdgeResponseStatus != OriginResponseStatus [$__auto])))",
+              "legendFormat": "edge={{EdgeResponseStatus}} \u2192 origin={{OriginResponseStatus}}",
               "refId": "A",
               "queryType": "range"
             }
           ],
-          "description": "Cases where edge returned 4xx/5xx. Grouped by edge status code. Filtered to requests that hit origin (OriginResponseStatus > 0)."
+          "description": "Requests where the edge status code differs from origin. Grouped by edge\u2192origin status pair, filtered to origin-fetched requests only. Shows edge transformations like 5xx\u21924xx (custom error pages) or 2xx\u21925xx (stale cache served)."
         }
       ],
       "title": "Performance",

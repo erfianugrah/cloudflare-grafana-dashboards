@@ -435,7 +435,7 @@ panels.append(table_panel(pid, "Top User Agents (Bot score < 30)",
     "{{ClientRequestUserAgent}}", 0, y, w=12,
     desc="Most common User-Agent strings among requests classified as likely bots (BotScore 1-29).")); pid += 1
 
-panels.append(table_panel(pid, "Error Rate by Path (4xx+5xx)",
+panels.append(table_panel(pid, "Top Error Paths (4xx+5xx)",
     f"approx_topk(20, sum by (ClientRequestPath) (count_over_time({http('EdgeResponseStatus')} | EdgeResponseStatus >= 400 [$__range])))",
     "{{ClientRequestPath}}", 12, y, w=12,
     desc="URL paths generating the most 4xx and 5xx errors. Useful for identifying broken endpoints or targeted attack paths.")); pid += 1
@@ -522,17 +522,19 @@ y += 8
 panels.append(row(pid, "Performance", y, desc="Request lifecycle timing: client-edge RTT, edge processing (WAF/cache), and edge-origin latency.")); pid += 1; y += 1
 
 # Helper for percentile target sets on a metric field
-def _perf_targets(field, ref_start="A"):
-    """Generate targets for median, p50, p75, p90, p95, p99 of a field."""
+def _perf_targets(field, ref_start="A", pre_filter=""):
+    """Generate targets for avg, p50, p75, p90, p95, p99 of a field.
+    pre_filter: optional LogQL filter inserted before unwrap (e.g. '| OriginResponseDurationMs > 0')."""
     refs = [chr(ord(ref_start) + i) for i in range(7)]
     h = http(field)
+    pf = f" {pre_filter}" if pre_filter else ""
     return [
-        t(f"sum(avg_over_time({h} | unwrap {field} [$__auto]))", "Avg", refs[0]),
-        t(f"sum(quantile_over_time(0.50, {h} | unwrap {field} [$__auto]))", "p50 (median)", refs[1]),
-        t(f"sum(quantile_over_time(0.75, {h} | unwrap {field} [$__auto]))", "p75", refs[2]),
-        t(f"sum(quantile_over_time(0.90, {h} | unwrap {field} [$__auto]))", "p90", refs[3]),
-        t(f"sum(quantile_over_time(0.95, {h} | unwrap {field} [$__auto]))", "p95", refs[4]),
-        t(f"sum(quantile_over_time(0.99, {h} | unwrap {field} [$__auto]))", "p99", refs[5]),
+        t(f"sum(avg_over_time({h}{pf} | unwrap {field} [$__auto]))", "Avg", refs[0]),
+        t(f"sum(quantile_over_time(0.50, {h}{pf} | unwrap {field} [$__auto]))", "p50 (median)", refs[1]),
+        t(f"sum(quantile_over_time(0.75, {h}{pf} | unwrap {field} [$__auto]))", "p75", refs[2]),
+        t(f"sum(quantile_over_time(0.90, {h}{pf} | unwrap {field} [$__auto]))", "p90", refs[3]),
+        t(f"sum(quantile_over_time(0.95, {h}{pf} | unwrap {field} [$__auto]))", "p95", refs[4]),
+        t(f"sum(quantile_over_time(0.99, {h}{pf} | unwrap {field} [$__auto]))", "p99", refs[5]),
     ]
 
 perf_overrides = [color_override("Avg", "green"), color_override("p50 (median)", "blue"),
@@ -540,18 +542,24 @@ perf_overrides = [color_override("Avg", "green"), color_override("p50 (median)",
                   color_override("p95", "orange"), color_override("p99", "red")]
 
 # Request lifecycle breakdown — stacked view of where time is spent
-_h_ttfb = http('EdgeTimeToFirstByteMs')
-_h_origin = http('OriginResponseDurationMs')
-_h_rtt = http('ClientTCPRTTMs')
+# Use label_format to compute edge processing per log line (TTFB - origin) before
+# aggregating, so that avg is taken over per-request differences — not avg(TTFB) - avg(origin)
+# which can go negative when the sample populations differ.
+# EdgeTimeToFirstByteMs is capped at 65535 (uint16) in Cloudflare's logging — when origin
+# takes longer than ~65s, TTFB saturates while OriginResponseDurationMs keeps counting,
+# producing nonsensical negative differences. Filter these out (<0.2% of traffic).
+_h_lifecycle = http('EdgeTimeToFirstByteMs', 'OriginResponseDurationMs', 'ClientTCPRTTMs')
+_ttfb_cap_filter = '| EdgeTimeToFirstByteMs < 65535'
+_lf_edge_proc = '| label_format EdgeProcessingMs="{{ subf .EdgeTimeToFirstByteMs .OriginResponseDurationMs }}"'
 panels.append(ts_panel(pid, "Request Lifecycle Breakdown (avg ms)", [
-    t(f"sum(avg_over_time({_h_rtt} | unwrap ClientTCPRTTMs [$__auto]))", "Client \u2192 Edge (TCP RTT)"),
-    t(f"sum(avg_over_time({_h_ttfb} | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(avg_over_time({_h_origin} | unwrap OriginResponseDurationMs [$__auto]))", "Edge Processing", "B"),
-    t(f"sum(avg_over_time({_h_origin} | unwrap OriginResponseDurationMs [$__auto]))", "Edge \u2192 Origin (total)", "C"),
+    t(f"sum(avg_over_time({_h_lifecycle} | unwrap ClientTCPRTTMs [$__auto]))", "Client \u2192 Edge (TCP RTT)"),
+    t(f"sum(avg_over_time({_h_lifecycle} {_ttfb_cap_filter} {_lf_edge_proc} | unwrap EdgeProcessingMs [$__auto]))", "Edge Processing", "B"),
+    t(f"sum(avg_over_time({_h_lifecycle} | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto]))", "Edge \u2192 Origin (total)", "C"),
 ], 0, y, w=24, unit="ms", stack=True, fill=50, legend_calcs=["mean", "lastNotNull"],
     overrides=[color_override("Client \u2192 Edge (TCP RTT)", "blue"),
                color_override("Edge Processing", "yellow"),
                color_override("Edge \u2192 Origin (total)", "orange")],
-    desc="Stacked breakdown of where request time is spent. Client\u2192Edge = TCP RTT. Edge Processing = TTFB minus origin duration (WAF, bot checks, cache lookup). Edge\u2192Origin = total origin fetch time.")); pid += 1
+    desc="Stacked breakdown of where request time is spent. Client\u2192Edge = TCP RTT. Edge Processing = TTFB minus origin duration (WAF, bot checks, cache lookup), computed per-request via label_format. Excludes requests where EdgeTimeToFirstByteMs hit the uint16 cap (65535ms). Edge\u2192Origin = origin fetch time (cache hits excluded).")); pid += 1
 y += 8
 
 # Detailed percentile panels
@@ -561,9 +569,9 @@ panels.append(ts_panel(pid, "Edge TTFB — End to End (ms)",
     desc="End-to-end Time To First Byte: from after TCP handshake to first byte sent to the client. Includes TLS negotiation, WAF processing, cache lookup, and origin response time.")); pid += 1
 
 panels.append(ts_panel(pid, "Origin Response Duration (ms)",
-    _perf_targets("OriginResponseDurationMs"),
+    _perf_targets("OriginResponseDurationMs", pre_filter="| OriginResponseDurationMs > 0"),
     12, y, unit="ms", stack=False, fill=10, overrides=perf_overrides, legend_calcs=["mean", "lastNotNull"],
-    desc="Total time for edge-to-origin request cycle: DNS resolution, TCP/TLS handshake, request send, and response receive. Includes Argo Smart Routing and Tiered Cache.")); pid += 1
+    desc="Total time for edge-to-origin request cycle: DNS resolution, TCP/TLS handshake, request send, and response receive. Includes Argo Smart Routing and Tiered Cache. Excludes cache hits (OriginResponseDurationMs=0).")); pid += 1
 y += 8
 
 panels.append(ts_panel(pid, "Client \u2192 Edge: TCP RTT (ms)",
@@ -572,36 +580,46 @@ panels.append(ts_panel(pid, "Client \u2192 Edge: TCP RTT (ms)",
     desc="TCP round-trip time between the client and Cloudflare edge. Reflects geographic distance and network quality. Not affected by server-side processing.")); pid += 1
 
 # Edge processing time (TTFB minus origin) — percentiles
+# Use label_format with subf to compute the difference per log line, then aggregate.
+# Filter out EdgeTimeToFirstByteMs >= 65535 (uint16 cap) — these produce garbage
+# differences because TTFB is truncated while OriginResponseDurationMs is not.
 _ep_h = http('EdgeTimeToFirstByteMs', 'OriginResponseDurationMs')
+_ep_cap = '| EdgeTimeToFirstByteMs < 65535'
+_ep_lf = '| label_format EdgeProcessingMs="{{ subf .EdgeTimeToFirstByteMs .OriginResponseDurationMs }}"'
 _ep_refs = [chr(ord("A") + i) for i in range(6)]
 panels.append(ts_panel(pid, "Edge Processing Time (ms)", [
-    t(f"sum(avg_over_time({_ep_h} | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(avg_over_time({_ep_h} | unwrap OriginResponseDurationMs [$__auto]))", "Avg", _ep_refs[0]),
-    t(f"sum(quantile_over_time(0.50, {_ep_h} | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(quantile_over_time(0.50, {_ep_h} | unwrap OriginResponseDurationMs [$__auto]))", "p50 (median)", _ep_refs[1]),
-    t(f"sum(quantile_over_time(0.75, {_ep_h} | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(quantile_over_time(0.75, {_ep_h} | unwrap OriginResponseDurationMs [$__auto]))", "p75", _ep_refs[2]),
-    t(f"sum(quantile_over_time(0.90, {_ep_h} | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(quantile_over_time(0.90, {_ep_h} | unwrap OriginResponseDurationMs [$__auto]))", "p90", _ep_refs[3]),
-    t(f"sum(quantile_over_time(0.95, {_ep_h} | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(quantile_over_time(0.95, {_ep_h} | unwrap OriginResponseDurationMs [$__auto]))", "p95", _ep_refs[4]),
-    t(f"sum(quantile_over_time(0.99, {_ep_h} | unwrap EdgeTimeToFirstByteMs [$__auto])) - sum(quantile_over_time(0.99, {_ep_h} | unwrap OriginResponseDurationMs [$__auto]))", "p99", _ep_refs[5]),
+    t(f"sum(avg_over_time({_ep_h} {_ep_cap} {_ep_lf} | unwrap EdgeProcessingMs [$__auto]))", "Avg", _ep_refs[0]),
+    t(f"sum(quantile_over_time(0.50, {_ep_h} {_ep_cap} {_ep_lf} | unwrap EdgeProcessingMs [$__auto]))", "p50 (median)", _ep_refs[1]),
+    t(f"sum(quantile_over_time(0.75, {_ep_h} {_ep_cap} {_ep_lf} | unwrap EdgeProcessingMs [$__auto]))", "p75", _ep_refs[2]),
+    t(f"sum(quantile_over_time(0.90, {_ep_h} {_ep_cap} {_ep_lf} | unwrap EdgeProcessingMs [$__auto]))", "p90", _ep_refs[3]),
+    t(f"sum(quantile_over_time(0.95, {_ep_h} {_ep_cap} {_ep_lf} | unwrap EdgeProcessingMs [$__auto]))", "p95", _ep_refs[4]),
+    t(f"sum(quantile_over_time(0.99, {_ep_h} {_ep_cap} {_ep_lf} | unwrap EdgeProcessingMs [$__auto]))", "p99", _ep_refs[5]),
 ], 12, y, unit="ms", stack=False, fill=10, overrides=perf_overrides, legend_calcs=["mean", "lastNotNull"],
-    desc="Derived metric: EdgeTimeToFirstByteMs minus OriginResponseDurationMs. Represents time spent on WAF rules, bot detection, cache lookup, and request routing at the edge.")); pid += 1
+    desc="Per-request edge processing time: EdgeTimeToFirstByteMs minus OriginResponseDurationMs, computed per log line via label_format. Excludes requests where TTFB hit the uint16 cap (65535ms). Represents time spent on WAF rules, bot detection, cache lookup, and request routing at the edge.")); pid += 1
 y += 8
 
 # Origin connection timing breakdown (sub-components of OriginResponseDurationMs)
+# Filter OriginResponseDurationMs > 0 to exclude cache hits where all sub-components are zero
+_origin_timing = http('OriginDNSResponseTimeMs', 'OriginTCPHandshakeDurationMs', 'OriginTLSHandshakeDurationMs',
+                       'OriginRequestHeaderSendDurationMs', 'OriginResponseHeaderReceiveDurationMs',
+                       'OriginResponseDurationMs')
+_origin_filter = '| OriginResponseDurationMs > 0'
 panels.append(ts_panel(pid, "Edge \u2192 Origin Timing Breakdown (avg ms)", [
-    t(f"sum(avg_over_time({http('OriginDNSResponseTimeMs')} | unwrap OriginDNSResponseTimeMs [$__auto]))", "DNS Lookup"),
-    t(f"sum(avg_over_time({http('OriginTCPHandshakeDurationMs')} | unwrap OriginTCPHandshakeDurationMs [$__auto]))", "TCP Handshake", "B"),
-    t(f"sum(avg_over_time({http('OriginTLSHandshakeDurationMs')} | unwrap OriginTLSHandshakeDurationMs [$__auto]))", "TLS Handshake", "C"),
-    t(f"sum(avg_over_time({http('OriginRequestHeaderSendDurationMs')} | unwrap OriginRequestHeaderSendDurationMs [$__auto]))", "Header Send", "D"),
-    t(f"sum(avg_over_time({http('OriginResponseHeaderReceiveDurationMs')} | unwrap OriginResponseHeaderReceiveDurationMs [$__auto]))", "Header Receive", "E"),
+    t(f"sum(avg_over_time({_origin_timing} {_origin_filter} | unwrap OriginDNSResponseTimeMs [$__auto]))", "DNS Lookup"),
+    t(f"sum(avg_over_time({_origin_timing} {_origin_filter} | unwrap OriginTCPHandshakeDurationMs [$__auto]))", "TCP Handshake", "B"),
+    t(f"sum(avg_over_time({_origin_timing} {_origin_filter} | unwrap OriginTLSHandshakeDurationMs [$__auto]))", "TLS Handshake", "C"),
+    t(f"sum(avg_over_time({_origin_timing} {_origin_filter} | unwrap OriginRequestHeaderSendDurationMs [$__auto]))", "Header Send", "D"),
+    t(f"sum(avg_over_time({_origin_timing} {_origin_filter} | unwrap OriginResponseHeaderReceiveDurationMs [$__auto]))", "Header Receive", "E"),
 ], 0, y, unit="ms", stack=True, fill=50, legend_calcs=["mean", "lastNotNull"],
     overrides=[color_override("DNS Lookup", "blue"), color_override("TCP Handshake", "green"),
                color_override("TLS Handshake", "yellow"), color_override("Header Send", "orange"),
                color_override("Header Receive", "purple")],
-    desc="Stacked sub-components of edge-to-origin time: DNS resolution, TCP handshake, TLS handshake, request header send, and response header receive.")); pid += 1
+    desc="Stacked sub-components of edge-to-origin time: DNS resolution, TCP handshake, TLS handshake, request header send, and response header receive. Excludes cache hits (OriginResponseDurationMs=0).")); pid += 1
 
 panels.append(ts_panel(pid, "Edge \u2192 Origin by Host (avg ms)", [
-    t(f"avg by (ClientRequestHost) (avg_over_time({http('OriginResponseDurationMs')} | unwrap OriginResponseDurationMs [$__auto]))", "{{ClientRequestHost}}")
+    t(f"avg by (ClientRequestHost) (avg_over_time({http('OriginResponseDurationMs')} | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto]))", "{{ClientRequestHost}}")
 ], 12, y, unit="ms", stack=False, fill=10, legend_calcs=["mean", "lastNotNull"],
-    desc="Average origin response duration per zone. Helps identify which hosts have slow origin servers.")); pid += 1
+    desc="Average origin response duration per zone (cache hits excluded). Helps identify which hosts have slow origin servers.")); pid += 1
 y += 8
 
 # By host and by ASN breakdowns
@@ -621,10 +639,10 @@ panels.append(ts_panel(pid, "Edge TTFB by ASN (avg ms, Top 10)", [
 ], 0, y, unit="ms", stack=False, fill=10, legend_calcs=["mean", "lastNotNull"],
     desc="Average TTFB for the top 10 ASNs by latency. Identifies networks with consistently slow end-to-end performance.")); pid += 1
 
-panels.append(ts_panel(pid, "Edge → Origin by ASN (avg ms, Top 10)", [
-    t(f"topk(10, avg by (ClientASN) (avg_over_time({http('OriginResponseDurationMs')} | unwrap OriginResponseDurationMs [$__auto])))", "AS{{ClientASN}}")
+panels.append(ts_panel(pid, "Origin Response by Client ASN (avg ms, Top 10)", [
+    t(f"topk(10, avg by (ClientASN) (avg_over_time({http('OriginResponseDurationMs')} | OriginResponseDurationMs > 0 | unwrap OriginResponseDurationMs [$__auto])))", "AS{{ClientASN}}")
 ], 12, y, unit="ms", stack=False, fill=10, legend_calcs=["mean", "lastNotNull"],
-    desc="Average origin response duration for top 10 ASNs. High values here may indicate origin routing issues or geographic distance to origin.")); pid += 1
+    desc="Average origin response duration grouped by the requesting client's ASN (cache hits excluded). No OriginASN field exists in Cloudflare Logpush. High values for specific ASNs may indicate those networks generate more cache misses or request heavier endpoints.")); pid += 1
 y += 8
 
 # Origin error rate by IP
@@ -634,9 +652,9 @@ panels.append(table_panel(pid, "Origin Error Rate by IP (5xx)",
     desc="Origin server IPs returning the most 5xx errors. Helps identify unhealthy origin instances.")); pid += 1
 
 panels.append(ts_panel(pid, "Origin vs Edge Status Mismatch", [
-    t(f'topk(10, sum by (EdgeResponseStatus) (count_over_time({http("EdgeResponseStatus", "OriginResponseStatus")} | OriginResponseStatus > 0 | EdgeResponseStatus >= 400 [$__auto])))', "edge={{EdgeResponseStatus}}")
+    t(f'topk(10, sum by (EdgeResponseStatus, OriginResponseStatus) (count_over_time({http("EdgeResponseStatus", "OriginResponseStatus")} | OriginResponseStatus > 0 | EdgeResponseStatus != OriginResponseStatus [$__auto])))', "edge={{EdgeResponseStatus}} \u2192 origin={{OriginResponseStatus}}")
 ], 12, y, stack=False, fill=10,
-    desc="Cases where edge returned 4xx/5xx. Grouped by edge status code. Filtered to requests that hit origin (OriginResponseStatus > 0).")); pid += 1
+    desc="Requests where the edge status code differs from origin. Grouped by edge\u2192origin status pair, filtered to origin-fetched requests only. Shows edge transformations like 5xx\u21924xx (custom error pages) or 2xx\u21925xx (stale cache served).")); pid += 1
 y += 8
 
 # ============================================================
