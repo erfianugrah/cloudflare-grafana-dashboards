@@ -2,8 +2,8 @@
 
 Two comprehensive Grafana dashboards for monitoring Cloudflare infrastructure:
 
-1. **Cloudflare Tunnel (cloudflared)** &mdash; 56 panels across 9 sections, powered by Prometheus
-2. **Cloudflare Logpush** &mdash; 82 panels across 9 sections, powered by Loki
+1. **Cloudflare Tunnel (cloudflared)** &mdash; 58 panels across 9 sections, powered by Prometheus
+2. **Cloudflare Logpush** &mdash; 114 panels across 11 sections, powered by Loki
 
 Both dashboards are available as importable JSON and as Python generators for customization.
 
@@ -149,7 +149,7 @@ Import `dashboards/cloudflare-tunnel.json` into Grafana and select your Promethe
 | **Traffic** | 4 | Request rate over time, error rate, response code breakdown, error ratio |
 | **Connections & Sessions** | 8 | HA connection status, tunnel registrations, timer retries, TCP/UDP active and total sessions |
 | **Edge Locations** | 2 | Server locations map and current edge colo connections |
-| **QUIC Transport** | 9 | Per-connection RTT (latest, smoothed, min), congestion window, MTU, connection state, lost packets, sent/received frames |
+| **QUIC Transport** | 11 | Per-connection RTT (latest, smoothed, min), congestion window, MTU, connection state, lost packets, sent/received frames, connection lifecycle (new vs closed), oversized packet drops |
 | **Latency** | 4 | Proxy connect latency histograms (p50/p90/p99), RPC client/server latency |
 | **RPC Operations** | 2 | RPC client and server operation rates by method |
 | **Process Resources** | 8 | CPU, memory (RSS/virtual), open file descriptors, network I/O |
@@ -375,7 +375,7 @@ resource "cloudflare_logpush_job" "firewall_events" {
   enabled          = true
   frequency        = "low"
 
-  logpull_options = "fields=Action,ClientASN,ClientASNDescription,ClientCountry,ClientIP,ClientIPClass,ClientRequestHost,ClientRequestMethod,ClientRequestPath,ClientRequestProtocol,ClientRequestUserAgent,Datetime,Description,EdgeColoCode,EdgeResponseStatus,Kind,MatchIndex,OriginResponseStatus,RayID,RuleID,Source&timestamps=rfc3339"
+  logpull_options = "fields=Action,ClientASN,ClientASNDescription,ClientCountry,ClientIP,ClientIPClass,ClientRefererHost,ClientRefererPath,ClientRefererQuery,ClientRefererScheme,ClientRequestHost,ClientRequestMethod,ClientRequestPath,ClientRequestProtocol,ClientRequestQuery,ClientRequestScheme,ClientRequestUserAgent,ContentScanObjResults,ContentScanObjSizes,ContentScanObjTypes,Datetime,Description,EdgeColoCode,EdgeResponseStatus,Kind,LeakedCredentialCheckResult,MatchIndex,Metadata,OriginResponseStatus,OriginatorRayID,RayID,Ref,RuleID,Source,UserAgent&timestamps=rfc3339"
 
   output_options {
     field_names      = ["Datetime"]
@@ -422,15 +422,17 @@ After import, edit the **Zone** and **Host** template variables to add your own 
 
 | Section | Panels | Description |
 |---------|--------|-------------|
-| **Overview** | 8 | Total requests, error rate, cache hit ratio, unique visitors, bandwidth, request rate, error rate time series |
-| **HTTP Requests** | 22 | Status code breakdown, request methods, HTTP versions, top paths, top user agents, error paths, geographic distribution, top ASNs, device types, top referers, TLS versions/ciphers |
-| **Performance** | 13 | TTFB distribution, origin response time, DNS/TCP/TLS handshake latency, TTFB by country/ASN, origin latency by ASN, origin error rate by IP, edge error mapping |
-| **Cache Performance** | 11 | Cache status distribution, hit ratio over time, hit ratio by host, hit ratio by path (top 10), tiered cache fill rate, edge/cache response bytes, content type distribution |
-| **Security & Firewall** | 5 | Firewall event rate, action breakdown, top firewall client IPs, top firewall rules, action over time |
-| **WAF Attack Analysis** | 6 | WAF score distribution, attack score heatmap, unmitigated attacks, security rule efficacy, RCE/SQLi/XSS score timeseries |
-| **Threat Intelligence** | 5 | Threat score distribution, top talkers by request count, suspicious user agents (bot score < 30), geo anomaly on sensitive paths, leaked credential checks |
-| **Bot Analysis** | 6 | Bot score distribution, bot vs human ratio, top JA4 TLS fingerprints, top JA3 hashes, bot score over time, automated traffic ratio |
-| **Workers** | 6 | Worker invocations, CPU time, wall time, subrequest counts, worker status, error rate |
+| **Overview** | 8 | Total requests, error rate, cache hit ratio, firewall events, leaked credentials, WAF high risk, bot traffic %, worker errors |
+| **HTTP Requests** | 22 | Status codes (color-coded), methods, protocols, request source, top paths, bot UAs, error paths, edge pathing, HTTP/HTTPS, geomap, country/colo top 10, ASNs, device types, referers, TLS versions/ciphers, mTLS, content scan, O2O |
+| **Performance** | 13 | Request lifecycle breakdown (stacked), TTFB/origin/RTT percentiles, edge processing time, origin timing sub-components, by-host and by-ASN breakdowns, origin errors by IP |
+| **Cache Performance** | 11 | Cache status over time + pie, hit ratio trend, by host, by path (approx_topk), tiered cache, Cache Reserve, response bytes, content types, compression ratio, Argo/Smart Routing |
+| **Security & Firewall** | 13 | Events by action/source/host, top IPs/rules, firewall geomap + country top 10, top attacked paths/UAs/ASNs, events by HTTP method, challenge solve rate, action distribution pie |
+| **API & Rate Limiting** | 9 | Rate limiting events, L7 DDoS mitigations, API Shield events, Bot Management events, rate limited paths/IPs, security product coverage, WAF rule types (managed vs custom), IP/country/ASN access rules |
+| **WAF Attack Analysis** | 6 | WAF score buckets, attack type breakdown (SQLi/XSS/RCE), unmitigated attacks, security rule efficacy, security actions on HTTP, client IP classification |
+| **Threat Intelligence** | 9 | Leaked credentials, fraud detection, top talkers, suspicious UAs, fraud detection tags/IDs, top client regions (subnational), firewall request URIs, geo anomaly on sensitive paths |
+| **Bot Analysis** | 8 | Bot score distribution, score source engine, verified bot categories, JS detection, bot tags, bot detection tags, top JA4 fingerprints, top JA3 hashes |
+| **Request & Response Size** | 6 | Client request bytes (avg/p95), edge response body bytes (avg/p95), largest uploads/responses by path, total bandwidth (stacked), response size by host |
+| **Workers** | 9 | Outcomes, CPU time, wall time, invocations by script, script versions, subrequest count, event types, exceptions table, status by script |
 
 ### Logpush Template Variables
 

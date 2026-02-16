@@ -1,6 +1,6 @@
 # Cloudflare Logpush Dashboard
 
-Comprehensive analytics dashboard for Cloudflare Logpush data stored in Loki. **82 panels across 9 sections** covering HTTP traffic, cache performance, security/firewall events, WAF attack analysis, threat intelligence, bot detection, and Workers.
+Comprehensive analytics dashboard for Cloudflare Logpush data stored in Loki. **114 panels across 11 sections** covering HTTP traffic, cache performance, security/firewall events, API & rate limiting, WAF attack analysis, threat intelligence, bot detection, request/response sizing, and Workers.
 
 8 template variable filters (zone, host, path, IP, country, JA4, ASN, colo) for deep drill-down. Every panel includes a description tooltip.
 
@@ -14,31 +14,37 @@ Comprehensive analytics dashboard for Cloudflare Logpush data stored in Loki. **
 ## Sections
 
 ### Overview (8 panels)
-Total requests, error rate, cache hit ratio, unique visitors, bandwidth, request rate and error rate time series.
+Total requests, 5xx error rate, cache hit ratio, firewall events, leaked credentials, high-risk WAF score, bot traffic %, worker errors.
 
 ### HTTP Requests (22 panels)
-Status code breakdown (2xx/3xx/4xx/5xx), request methods, HTTP versions, top paths, top user agents, error paths, geographic distribution (geomap), top client ASNs with name resolution, device types, top referers, TLS versions and cipher suites.
+Status codes (color-coded 2xx/3xx/4xx/5xx), request methods, protocols, request source (eyeball vs worker), top paths, bot user agents, error rate by path, edge pathing decisions, HTTP vs HTTPS, geomap (world map by country), requests by country and colo (top 10), top client ASNs with name resolution, device types, top referers, TLS versions/ciphers, origin SSL protocol, mTLS authentication, content scan results, orange-to-orange traffic.
 
 ### Performance (13 panels)
-TTFB distribution, origin response time, DNS/TCP/TLS handshake latency, TTFB by country and by ASN, origin latency by ASN, origin error rate by IP, edge error code mapping.
+Request lifecycle breakdown (stacked: Client-Edge RTT, Edge Processing, Edge-Origin), TTFB/origin/RTT percentiles (avg/p50/p75/p90/p95/p99), edge processing time, origin timing sub-components (DNS/TCP/TLS/headers), by-host and by-ASN breakdowns, origin error rate by IP, origin vs edge status mismatch.
 
 ### Cache Performance (11 panels)
-Cache status distribution (hit/miss/dynamic/expired/etc.), hit ratio over time, hit ratio by host (zone), hit ratio by path (top 10 using `approx_topk`), tiered cache fill rate, Cache Reserve usage, edge/cache response bytes, content type distribution.
+Cache status over time + pie chart, hit ratio trend, hit ratio by host (zone), hit ratio by path (top 10 using `approx_topk`), tiered cache fill rate, Cache Reserve usage, edge/cache response bytes, content type distribution, compression ratio, Argo Smart Routing usage.
 
-### Security & Firewall (5 panels)
-Firewall event rate, action breakdown (block/challenge/js_challenge/managed_challenge), top firewall client IPs, top triggered firewall rules, action distribution over time.
+### Security & Firewall (13 panels)
+Firewall events by action/source/host, top client IPs, top rules, firewall events geomap + country top 10, top attacked paths, top attacking user agents, top attacking ASNs, events by HTTP method, challenge solve rate, firewall action distribution pie.
+
+### API & Rate Limiting (9 panels)
+Rate limiting events by action, L7 DDoS mitigations, API Shield events (schema validation, JWT, sequence mitigation), Bot Management enforcement events, rate limited paths/IPs tables, security product coverage (all Source values), WAF rule types (managed vs custom vs legacy), IP/country/ASN access rules.
 
 ### WAF Attack Analysis (6 panels)
-WAF attack score distribution, attack score heatmap, unmitigated attacks (WAF score <= 20 but not blocked), security rule efficacy, RCE/SQLi/XSS individual score time series.
+WAF attack score buckets (high/medium/low risk), attack type breakdown (SQLi/XSS/RCE at score <= 20), unmitigated attacks table (low score + not blocked), security rule efficacy, security actions on HTTP requests, client IP classification.
 
-### Threat Intelligence (5 panels)
-Threat score distribution, top talkers by request count, suspicious user agents (bot score < 30), geo anomaly detection on sensitive paths (admin, login, wp-login, phpmyadmin, xmlrpc, etc.), leaked credential check results.
+### Threat Intelligence (9 panels)
+Leaked credential check results, fraud detection signals, top talkers by IP, suspicious user agents (bot score < 30), fraud detection tags/IDs, top client regions (subnational ISO 3166-2), firewall event request URIs (path + query string), geo anomaly on sensitive paths.
 
-### Bot Analysis (6 panels)
-Bot score distribution, bot vs. human traffic ratio, top JA4 TLS fingerprints, top JA3 hashes, bot score over time, automated traffic ratio.
+### Bot Analysis (8 panels)
+Bot score distribution (bot/possibly-bot/human), bot score source engine (ML/Heuristics/JS Fingerprinting), verified bot categories, JS detection pass/fail, bot tags distribution, bot detection tags detail, top JA4 TLS fingerprints, top JA3 hashes.
 
-### Workers (6 panels)
-Worker invocations, CPU time, wall time, subrequest counts, worker status codes, error rate.
+### Request & Response Size (6 panels)
+Client request bytes (avg/p95), edge response body bytes (avg/p95), largest uploads by path (>10KB), largest responses by path (>100KB), total bandwidth (inbound + outbound stacked), response size by host.
+
+### Workers (9 panels)
+Worker outcomes (ok/exception/exceeded), CPU time by script (avg/p95), wall time, invocations by script, script version tracking, subrequest count, event types (fetch/cron/alarm/queue), exceptions table, status by script.
 
 ## Template Variables
 

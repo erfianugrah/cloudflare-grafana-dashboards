@@ -3988,6 +3988,242 @@
               "refId": "A"
             }
           ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "New Connections/sec"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Closed Connections/sec"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 121
+          },
+          "id": 49,
+          "description": "QUIC connection creation vs closure rate. New connections happen at startup and during reconnections. Frequent closures may indicate network instability or edge-side disconnects.",
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "title": "QUIC Connection Lifecycle",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(quic_client_total_connections{job=~\"$job\"}[$__rate_interval]))",
+              "legendFormat": "New Connections/sec",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(quic_client_closed_connections{job=~\"$job\"}[$__rate_interval]))",
+              "legendFormat": "Closed Connections/sec",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Packets Dropped/sec"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 121
+          },
+          "id": 50,
+          "description": "Rate of QUIC packets dropped because they exceeded the path MTU. Non-zero indicates MTU discovery issues \u2014 check for MTU blackholes or misconfigured network equipment between cloudflared and edge.",
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "title": "Oversized Packet Drops",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(quic_client_packet_too_big_dropped{job=~\"$job\"}[$__rate_interval]))",
+              "legendFormat": "Packets Dropped/sec",
+              "refId": "A"
+            }
+          ]
         }
       ],
       "title": "QUIC Transport",
@@ -4000,9 +4236,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 121
+        "y": 129
       },
-      "id": 49,
+      "id": 51,
       "panels": [
         {
           "datasource": {
@@ -4108,9 +4344,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 122
+            "y": 130
           },
-          "id": 50,
+          "id": 52,
           "description": "Time to establish and acknowledge connections to origin, in milliseconds. Includes DNS resolution, TCP handshake, and TLS handshake to origin. High p99 may indicate DNS resolution delays or origin connection pool exhaustion.",
           "options": {
             "legend": {
@@ -4262,9 +4498,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 122
+            "y": 130
           },
-          "id": 51,
+          "id": 53,
           "description": "Latency of RPC calls initiated by cloudflared (e.g. register_connection). These are control plane operations, not data plane. High latency here affects tunnel registration/reconnection speed.",
           "options": {
             "legend": {
@@ -4416,9 +4652,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 130
+            "y": 138
           },
-          "id": 52,
+          "id": 54,
           "description": "Latency of RPC calls served by cloudflared (e.g. update_configuration from edge). High values may indicate slow config processing.",
           "options": {
             "legend": {
@@ -4524,9 +4760,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 130
+            "y": 138
           },
-          "id": 53,
+          "id": 55,
           "description": "Distribution of proxy connect latency across histogram buckets. Shows the shape of the latency distribution \u2014 bimodal patterns may indicate DNS cache hits/misses.",
           "options": {
             "legend": {
@@ -4567,9 +4803,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 138
+        "y": 146
       },
-      "id": 54,
+      "id": 56,
       "panels": [
         {
           "datasource": {
@@ -4629,9 +4865,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 139
+            "y": 147
           },
-          "id": 55,
+          "id": 57,
           "description": "Rate of RPC calls initiated by cloudflared. 'registration/register_connection' happens at startup and reconnection. Frequent calls may indicate unstable connections.",
           "options": {
             "legend": {
@@ -4719,9 +4955,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 139
+            "y": 147
           },
-          "id": 56,
+          "id": 58,
           "description": "Rate of RPC calls served by cloudflared. 'config/update_configuration' is triggered by Cloudflare dashboard changes. Frequent unexpected calls may indicate config flapping.",
           "options": {
             "legend": {
@@ -4762,9 +4998,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 147
+        "y": 155
       },
-      "id": 57,
+      "id": 59,
       "panels": [
         {
           "datasource": {
@@ -4824,9 +5060,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 148
+            "y": 156
           },
-          "id": 58,
+          "id": 60,
           "description": "CPU usage as fraction of one core. 1.0 = one full core. Compare against resource limits to assess headroom.",
           "options": {
             "legend": {
@@ -4914,9 +5150,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 148
+            "y": 156
           },
-          "id": 59,
+          "id": 61,
           "description": "RSS = total process memory. Go Heap = active Go allocations. Heap Idle = memory returned to runtime but not OS. RSS is the metric to compare against k8s memory limits.",
           "options": {
             "legend": {
@@ -5053,9 +5289,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 156
+            "y": 164
           },
-          "id": 60,
+          "id": 62,
           "description": "Process-level network throughput. TX = data sent to origins + edge. RX = data received from edge + origins. Should correlate with QUIC bytes but includes non-tunnel traffic (metrics scrapes, etc.).",
           "options": {
             "legend": {
@@ -5152,9 +5388,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 156
+            "y": 164
           },
-          "id": 61,
+          "id": 63,
           "description": "Number of active Go goroutines. Correlates with concurrent requests. A sustained increase without corresponding traffic may indicate goroutine leaks.",
           "options": {
             "legend": {
@@ -5242,9 +5478,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 156
+            "y": 164
           },
-          "id": 62,
+          "id": 64,
           "description": "Open vs maximum file descriptors. Cloudflare recommends ulimit -n \u2265 70,000. If Open approaches Max, connections will fail. In Kubernetes, check the pod's securityContext or the node's /proc/sys/fs/file-max.",
           "options": {
             "legend": {
@@ -5341,9 +5577,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 164
+            "y": 172
           },
-          "id": 63,
+          "id": 65,
           "description": "Rate of time spent in Go garbage collection (stop-the-world pauses). High GC pressure correlates with high allocation rate. Should be negligible (<1% of wall time).",
           "options": {
             "legend": {
@@ -5431,9 +5667,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 164
+            "y": 172
           },
-          "id": 64,
+          "id": 66,
           "description": "Number of live heap-allocated Go objects. Correlates with concurrent connections and requests. Rapid growth indicates memory pressure.",
           "options": {
             "legend": {
@@ -5521,9 +5757,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 164
+            "y": 172
           },
-          "id": 65,
+          "id": 67,
           "description": "Rate of Go heap allocations. High allocation rate drives more frequent GC. Correlates with request rate \u2014 each proxied request allocates buffers.",
           "options": {
             "legend": {

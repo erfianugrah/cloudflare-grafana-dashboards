@@ -645,12 +645,12 @@ y += 10
 # ============================================================
 panels.append(row(pid, "Security & Firewall", y)); pid += 1; y += 1
 
-fw_action_overrides = [color_override("block", "red"), color_override("challenge", "orange"), color_override("managed_challenge", "yellow"), color_override("js_challenge", "purple"), color_override("log", "blue"), color_override("skip", "green")]
+fw_action_overrides = [color_override("block", "red"), color_override("challenge", "orange"), color_override("managedchallenge", "yellow"), color_override("jschallenge", "purple"), color_override("log", "blue"), color_override("skip", "green")]
 
 panels.append(ts_panel(pid, "Firewall Events by Action", [
     t(f"sum by (Action) (count_over_time({fw('Action')} [$__auto]))", "{{Action}}")
 ], 0, y, overrides=fw_action_overrides,
-    desc="Firewall events grouped by action taken: block, challenge, managed_challenge, js_challenge, log, skip.")); pid += 1
+    desc="Firewall events grouped by action taken: block, challenge, managedchallenge, jschallenge, log, skip, bypass, allow.")); pid += 1
 
 panels.append(ts_panel(pid, "Firewall Events by Source", [
     t(f"sum by (Source) (count_over_time({fw('Source')} [$__auto]))", "{{Source}}")
@@ -670,6 +670,104 @@ panels.append(table_panel(pid, "Top Firewall Rules",
 panels.append(ts_panel(pid, "Firewall Events by Host", [
     t(f"sum by (ClientRequestHost) (count_over_time({fw()} [$__auto]))", "{{ClientRequestHost}}")
 ], 16, y, w=8, desc="Firewall event distribution across zones. Identifies which hosts are most targeted.")); pid += 1
+y += 8
+
+# Firewall events by country (geomap)
+panels.append(geomap_panel(pid, "Firewall Events by Country (Map)",
+    f"sum by (ClientCountry) (count_over_time({fw('ClientCountry')} [$__range]))",
+    "ClientCountry", 0, y, w=16, h=10,
+    desc="Geographic distribution of firewall events. Highlights countries generating the most blocked/challenged requests.")); pid += 1
+
+panels.append(ts_panel(pid, "Firewall Events by Country (Top 10)", [
+    t(f"topk(10, sum by (ClientCountry) (count_over_time({fw('ClientCountry')} [$__auto])))", "{{ClientCountry}}")
+], 16, y, w=8, h=10, overrides=country_name_overrides(),
+    desc="Top 10 countries by firewall event volume over time.")); pid += 1
+y += 10
+
+panels.append(table_panel(pid, "Top Attacked Paths",
+    f"topk(20, sum by (ClientRequestPath) (count_over_time({fw('ClientRequestPath')} [$__range])))",
+    "{{ClientRequestPath}}", 0, y, w=8,
+    desc="URL paths triggering the most firewall events. Identifies commonly targeted endpoints (login, admin, API routes).")); pid += 1
+
+panels.append(table_panel(pid, "Top Attacking User Agents",
+    f"topk(20, sum by (UserAgent) (count_over_time({fw('UserAgent')} | UserAgent != `` [$__range])))",
+    "{{UserAgent}}", 8, y, w=8,
+    desc="User-Agent strings triggering the most firewall events. Common attack tools use distinctive UA strings.")); pid += 1
+
+panels.append(table_panel(pid, "Top Attacking ASNs",
+    f"topk(20, sum by (ClientASN) (count_over_time({fw('ClientASN')} [$__range])))",
+    "{{ClientASN}}", 16, y, w=8,
+    extra_overrides=[asn_value_mappings_override("ClientASN")],
+    desc="Autonomous System Numbers generating the most firewall events. High-volume ASNs may warrant ASN-level blocking.")); pid += 1
+y += 8
+
+panels.append(bar_panel(pid, "Firewall Events by HTTP Method", [
+    t(f"sum by (ClientRequestMethod) (count_over_time({fw('ClientRequestMethod')} [$__auto]))", "{{ClientRequestMethod}}")
+], 0, y, w=8, desc="HTTP methods in firewall events. POST/PUT heavy = credential stuffing or injection attacks. Unusual methods (OPTIONS, TRACE) may indicate reconnaissance.")); pid += 1
+
+panels.append(ts_panel(pid, "Challenge Solve Rate", [
+    t(f'sum(count_over_time({fw("Action")} | Action =~ "managedchallenge|challenge|jschallenge" [$__auto]))', "Challenges Issued"),
+    t(f'sum(count_over_time({http("SecurityAction")} | SecurityAction =~ "managed_challenge|challenge|js_challenge" [$__auto]))', "Challenges (HTTP side)", "B"),
+], 8, y, w=8, overrides=[color_override("Challenges Issued", "orange"), color_override("Challenges (HTTP side)", "yellow")],
+    desc="Volume of challenge actions issued over time. Compare firewall_events challenges vs http_requests challenges to understand solve/fail rates.")); pid += 1
+
+panels.append(pie_panel(pid, "Firewall Action Distribution",
+    f"sum by (Action) (count_over_time({fw('Action')} [$__range]))",
+    "{{Action}}", 16, y, w=8, overrides=fw_action_overrides,
+    desc="Overall distribution of firewall actions. Review 'log' proportion — high log-only rates may indicate rules that should be escalated.")); pid += 1
+y += 8
+
+# ============================================================
+# ROW: API & Rate Limiting
+# ============================================================
+panels.append(row(pid, "API & Rate Limiting", y, desc="Rate limiting, L7 DDoS, API Shield, and other product-specific firewall events. Uses the firewall_events Source field to filter by security product.")); pid += 1; y += 1
+
+panels.append(ts_panel(pid, "Rate Limiting Events", [
+    t(f'sum by (Action) (count_over_time({fw("Source", "Action")} | Source = `ratelimit` [$__auto]))', "{{Action}}")
+], 0, y, overrides=fw_action_overrides,
+    desc="Firewall events from rate limiting rules, grouped by action. Source=ratelimit in firewall_events.")); pid += 1
+
+panels.append(ts_panel(pid, "L7 DDoS Mitigations", [
+    t(f'sum by (Action) (count_over_time({fw("Source", "Action")} | Source = `l7ddos` [$__auto]))', "{{Action}}")
+], 12, y, overrides=[color_override("block", "red"), color_override("managedchallenge", "orange"), color_override("log", "blue")],
+    desc="L7 DDoS protection events. Cloudflare automatically detects and mitigates application-layer DDoS attacks. Source=l7ddos in firewall_events.")); pid += 1
+y += 8
+
+panels.append(ts_panel(pid, "API Shield Events", [
+    t(f'sum by (Source) (count_over_time({fw("Source")} | Source =~ "apishield.*" [$__auto]))', "{{Source}}")
+], 0, y, desc="API Shield events including schema validation, JWT token validation, and sequence mitigation. Covers all apishield* sources.")); pid += 1
+
+panels.append(ts_panel(pid, "Bot Management Events", [
+    t(f'sum by (Action) (count_over_time({fw("Source", "Action")} | Source =~ "botfight|botmanagement" [$__auto]))', "{{Action}}")
+], 12, y, overrides=fw_action_overrides,
+    desc="Bot Fight Mode and Bot Management firewall events. These are separate from the BotScore analysis — this shows enforcement actions.")); pid += 1
+y += 8
+
+panels.append(table_panel(pid, "Rate Limited Paths",
+    f'topk(20, sum by (ClientRequestPath) (count_over_time({fw("Source", "ClientRequestPath")} | Source = `ratelimit` [$__range])))',
+    "{{ClientRequestPath}}", 0, y, w=8,
+    desc="URL paths most frequently hit by rate limiting rules. Review for false positives on legitimate high-traffic endpoints.")); pid += 1
+
+panels.append(table_panel(pid, "Rate Limited IPs",
+    f'topk(20, sum by (ClientIP) (count_over_time({fw("Source")} | Source = `ratelimit` [$__range])))',
+    "{{ClientIP}}", 8, y, w=8,
+    desc="Client IPs most frequently rate limited. Persistent offenders are candidates for IP block rules.")); pid += 1
+
+panels.append(ts_panel(pid, "Security Product Coverage", [
+    t(f'sum by (Source) (count_over_time({fw("Source")} [$__auto]))', "{{Source}}")
+], 16, y, w=8, desc="All firewall events by security product source. Shows which Cloudflare security products are actively triggering. Full list: waf, firewallManaged, firewallCustom, ratelimit, l7ddos, botFight, ip, country, etc.")); pid += 1
+y += 8
+
+panels.append(ts_panel(pid, "WAF Rule Types (Managed vs Custom)", [
+    t(f'sum(count_over_time({fw("Source")} | Source = `waf` [$__auto]))', "WAF (legacy)"),
+    t(f'sum(count_over_time({fw("Source")} | Source = `firewallmanaged` [$__auto]))', "Managed Ruleset", "B"),
+    t(f'sum(count_over_time({fw("Source")} | Source = `firewallcustom` [$__auto]))', "Custom Rules", "C"),
+], 0, y, overrides=[color_override("WAF (legacy)", "purple"), color_override("Managed Ruleset", "orange"), color_override("Custom Rules", "blue")],
+    desc="Comparison of WAF event sources: legacy WAF rules, managed rulesets (OWASP/Cloudflare), and custom WAF rules.")); pid += 1
+
+panels.append(ts_panel(pid, "IP/Country/ASN Access Rules", [
+    t(f'sum by (Source) (count_over_time({fw("Source")} | Source =~ "ip|iprange|asn|country|zonelockdown|uablock" [$__auto]))', "{{Source}}")
+], 12, y, desc="Access control rule events: IP access rules, IP range, ASN rules, country blocks, zone lockdown, and UA blocking.")); pid += 1
 y += 8
 
 # ============================================================
@@ -707,8 +805,8 @@ y += 8
 # Security sources and actions
 panels.append(ts_panel(pid, "Security Actions on HTTP Requests", [
     t(f'sum by (SecurityAction) (count_over_time({http("SecurityAction")} | SecurityAction != `` [$__auto]))', "{{SecurityAction}}")
-], 0, y, overrides=[color_override("block", "red"), color_override("challenge", "orange"), color_override("managedChallenge", "yellow"), color_override("log", "blue"), color_override("skip", "green")],
-    desc="All security actions applied to HTTP requests over time. Sourced from the http_requests dataset SecurityAction field.")); pid += 1
+], 0, y, overrides=[color_override("block", "red"), color_override("challenge", "orange"), color_override("managed_challenge", "yellow"), color_override("js_challenge", "purple"), color_override("log", "blue"), color_override("skip", "green")],
+    desc="All security actions applied to HTTP requests over time. Sourced from the http_requests dataset SecurityAction field (uses underscored values: block, managed_challenge, js_challenge, challenge).")); pid += 1
 
 panels.append(ts_panel(pid, "Client IP Classification", [
     t(f'sum by (ClientIPClass) (count_over_time({http("ClientIPClass")} | ClientIPClass != `noRecord` | ClientIPClass != `` [$__auto]))', "{{ClientIPClass}}")
@@ -740,6 +838,27 @@ panels.append(table_panel(pid, "Suspicious UAs (BotScore < 30)",
     f'approx_topk(20, sum by (ClientRequestUserAgent) (count_over_time({http("ClientRequestUserAgent", "BotScore")} | BotScore > 0 | BotScore < 30 [$__range])))',
     "{{ClientRequestUserAgent}}", 12, y, w=12,
     desc="User-Agent strings with low bot scores (1-29 = likely automated). Identify scraping tools, vulnerability scanners, and fake browsers.")); pid += 1
+y += 8
+
+panels.append(ts_panel(pid, "Fraud Detection Tags", [
+    t(f'sum by (FraudDetectionTags) (count_over_time({http("FraudDetectionTags")} | FraudDetectionTags != `` | FraudDetectionTags != `[]` [$__auto]))', "{{FraudDetectionTags}}")
+], 0, y, desc="Cloudflare Turnstile and fraud detection tag distribution over time. Tags identify categories of fraudulent behavior.")); pid += 1
+
+panels.append(table_panel(pid, "Fraud Detection IDs",
+    f'topk(20, sum by (FraudDetectionIDs) (count_over_time({http("FraudDetectionIDs")} | FraudDetectionIDs != `` | FraudDetectionIDs != `[]` [$__range])))',
+    "{{FraudDetectionIDs}}", 12, y, w=12,
+    desc="Specific fraud detection rule IDs triggered. Each ID maps to a specific detection signal in Cloudflare's fraud detection system.")); pid += 1
+y += 8
+
+panels.append(table_panel(pid, "Top Client Regions (subnational)",
+    f'topk(25, sum by (ClientRegionCode) (count_over_time({http("ClientRegionCode")} | ClientRegionCode != `` [$__range])))',
+    "{{ClientRegionCode}}", 0, y, w=12,
+    desc="Top client regions (ISO 3166-2 subdivision codes, e.g., US-CA, GB-LND). Provides subnational geographic granularity beyond country level.")); pid += 1
+
+panels.append(table_panel(pid, "Firewall Events: Top Request URIs",
+    f'topk(20, sum by (ClientRequestPath, ClientRequestQuery) (count_over_time({fw("ClientRequestPath", "ClientRequestQuery")} | ClientRequestQuery != `` [$__range])))',
+    "{{ClientRequestPath}}?{{ClientRequestQuery}}", 12, y, w=12,
+    desc="Top full request URIs (path + query string) in firewall events. Query strings may reveal injection attempts (SQLi, XSS payloads).")); pid += 1
 y += 8
 
 panels.append(table_panel(pid, "Geo Anomaly: Sensitive Paths by Country",
@@ -776,6 +895,16 @@ panels.append(ts_panel(pid, "JS Detection Pass/Fail", [
     desc="JavaScript fingerprinting challenge results. 'failed' = client did not execute JS (likely headless bot). 'missing' = challenge not served.")); pid += 1
 y += 8
 
+panels.append(bar_panel(pid, "Bot Tags Distribution", [
+    t(f'sum by (BotTags) (count_over_time({http("BotTags")} | BotTags != `` | BotTags != `[]` [$__auto]))', "{{BotTags}}")
+], 0, y, w=12, desc="Cloudflare Bot Management tags assigned to requests. Tags provide additional classification detail beyond the numeric BotScore (e.g., 'likely_automated', 'verified_bot').")); pid += 1
+
+panels.append(table_panel(pid, "Bot Detection Tags Detail",
+    f'topk(25, sum by (BotDetectionTags) (count_over_time({http("BotDetectionTags")} | BotDetectionTags != `` | BotDetectionTags != `[]` [$__range])))',
+    "{{BotDetectionTags}}", 12, y, w=12,
+    desc="Detailed bot detection signals. BotDetectionTags provides granular information about why a request was classified as bot traffic.")); pid += 1
+y += 8
+
 panels.append(table_panel(pid, "Top JA4 TLS Fingerprints",
     f'approx_topk(25, sum by (JA4) (count_over_time({http()} | JA4 != `` [$__range])))',
     "{{JA4}}", 0, y, w=12,
@@ -785,6 +914,66 @@ panels.append(table_panel(pid, "Top JA3 Hashes",
     f'approx_topk(25, sum by (JA3Hash) (count_over_time({http("JA3Hash")} | JA3Hash != `` [$__range])))',
     "{{JA3Hash}}", 12, y, w=12,
     desc="Top JA3 TLS fingerprint hashes. Legacy fingerprinting method (predecessor to JA4). Useful for identifying known malicious TLS implementations.")); pid += 1
+y += 8
+
+# ============================================================
+# ROW: Request & Response Size
+# ============================================================
+panels.append(row(pid, "Request & Response Size", y, desc="Request and response payload size analysis. Identifies large uploads, oversized responses, and bandwidth consumption patterns.")); pid += 1; y += 1
+
+panels.append(ts_panel(pid, "Client Request Bytes (avg)", [
+    t(f"sum(avg_over_time({http('ClientRequestBytes')} | unwrap ClientRequestBytes [$__auto]))", "Avg Request Size"),
+    t(f"sum(quantile_over_time(0.95, {http('ClientRequestBytes')} | unwrap ClientRequestBytes [$__auto]))", "p95 Request Size", "B"),
+], 0, y, unit="bytes", stack=False, fill=10, legend_calcs=["mean", "lastNotNull"],
+    overrides=[color_override("Avg Request Size", "green"), color_override("p95 Request Size", "orange")],
+    desc="Average and p95 client request body size in bytes. Large requests may indicate file uploads, API payloads, or abuse.")); pid += 1
+
+panels.append(ts_panel(pid, "Edge Response Body Bytes (avg)", [
+    t(f"sum(avg_over_time({http('EdgeResponseBodyBytes')} | unwrap EdgeResponseBodyBytes [$__auto]))", "Avg Response Body"),
+    t(f"sum(quantile_over_time(0.95, {http('EdgeResponseBodyBytes')} | unwrap EdgeResponseBodyBytes [$__auto]))", "p95 Response Body", "B"),
+], 12, y, unit="bytes", stack=False, fill=10, legend_calcs=["mean", "lastNotNull"],
+    overrides=[color_override("Avg Response Body", "blue"), color_override("p95 Response Body", "orange")],
+    desc="Average and p95 edge response body size. Excludes headers. Large responses may indicate unoptimized images, large API payloads, or data exfiltration.")); pid += 1
+y += 8
+
+panels.append(table_panel(pid, "Largest Uploads by Path (avg request bytes)",
+    f"topk(20, avg by (ClientRequestPath) (avg_over_time({http('ClientRequestBytes')} | ClientRequestBytes > 10000 | unwrap ClientRequestBytes [$__range])))",
+    "{{ClientRequestPath}}", 0, y, w=12,
+    extra_overrides=[
+        {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [
+            {"id": "displayName", "value": "Avg Bytes"},
+            {"id": "unit", "value": "bytes"},
+            {"id": "custom.width", "value": 120},
+            {"id": "custom.cellOptions", "value": {"mode": "basic", "type": "gauge", "valueDisplayMode": "text"}},
+        ]},
+    ],
+    desc="Paths receiving the largest request payloads (>10KB average). Identifies file upload endpoints and potential abuse vectors.")); pid += 1
+
+panels.append(table_panel(pid, "Largest Responses by Path (avg response bytes)",
+    f"topk(20, avg by (ClientRequestPath) (avg_over_time({http('EdgeResponseBodyBytes')} | EdgeResponseBodyBytes > 100000 | unwrap EdgeResponseBodyBytes [$__range])))",
+    "{{ClientRequestPath}}", 12, y, w=12,
+    extra_overrides=[
+        {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [
+            {"id": "displayName", "value": "Avg Bytes"},
+            {"id": "unit", "value": "bytes"},
+            {"id": "custom.width", "value": 120},
+            {"id": "custom.cellOptions", "value": {"mode": "basic", "type": "gauge", "valueDisplayMode": "text"}},
+        ]},
+    ],
+    desc="Paths serving the largest responses (>100KB average). Candidates for compression, CDN caching, or image optimization.")); pid += 1
+y += 8
+
+panels.append(ts_panel(pid, "Total Bandwidth (Request + Response)", [
+    t(f"sum(sum_over_time({http('ClientRequestBytes')} | unwrap ClientRequestBytes [$__auto]))", "Request Bytes (inbound)"),
+    t(f"sum(sum_over_time({http('EdgeResponseBodyBytes')} | unwrap EdgeResponseBodyBytes [$__auto]))", "Response Body Bytes (outbound)", "B"),
+], 0, y, unit="bytes", stack=True, fill=50,
+    overrides=[color_override("Request Bytes (inbound)", "green"), color_override("Response Body Bytes (outbound)", "blue")],
+    desc="Total bandwidth: inbound (client request bytes) and outbound (edge response body bytes). Stacked to show the ratio of upload vs download traffic.")); pid += 1
+
+panels.append(ts_panel(pid, "Response Size by Host (avg)", [
+    t(f"avg by (ClientRequestHost) (avg_over_time({http('EdgeResponseBodyBytes')} | unwrap EdgeResponseBodyBytes [$__auto]))", "{{ClientRequestHost}}")
+], 12, y, unit="bytes", stack=False, fill=10, legend_calcs=["mean", "lastNotNull"],
+    desc="Average response body size per zone. Identifies which zones serve the largest payloads.")); pid += 1
 y += 8
 
 # ============================================================
@@ -822,6 +1011,20 @@ panels.append(ts_panel(pid, "Worker Subrequest Count (avg)", [
     t(f"avg by (WorkerScriptName) (avg_over_time({http('WorkerScriptName', 'WorkerSubrequestCount')} | unwrap WorkerSubrequestCount [$__auto]))", "{{WorkerScriptName}}")
 ], 18, y, w=6, stack=False, fill=10,
     desc="Average number of subrequests (fetch calls) per Worker invocation. Workers have a 50 subrequest limit per invocation.")); pid += 1
+y += 8
+
+panels.append(bar_panel(pid, "Worker Event Types", [
+    t(f'sum by (EventType) (count_over_time({wk("EventType")} [$__auto]))', "{{EventType}}")
+], 0, y, w=8, desc="Worker event types: 'fetch' (HTTP request), 'cron' (scheduled trigger), 'alarm' (Durable Object alarm), 'queue' (Queue consumer). Shows the mix of invocation triggers.")); pid += 1
+
+panels.append(table_panel(pid, "Worker Exceptions",
+    f'topk(20, sum by (ScriptName, Exceptions) (count_over_time({wk("ScriptName", "Exceptions")} | Exceptions != `` | Exceptions != `[]` [$__range])))',
+    "{{ScriptName}}: {{Exceptions}}", 8, y, w=8,
+    desc="Worker exceptions grouped by script and error message. Exceptions are unhandled errors thrown during execution.")); pid += 1
+
+panels.append(ts_panel(pid, "Worker Status by Script", [
+    t(f'sum by (ScriptName, Status) (count_over_time({wk("ScriptName", "Status")} [$__auto]))', "{{ScriptName}} [{{Status}}]")
+], 16, y, w=8, desc="Worker invocation status (ok/error) by script name. Shows the success/failure ratio per Worker.")); pid += 1
 y += 8
 
 # Build the dashboard JSON

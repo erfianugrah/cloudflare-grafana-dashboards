@@ -513,6 +513,20 @@ panels.append(ts_panel(pid, "QUIC Frames Received", [
     desc="Rate of QUIC frames received by type. High 'Ping' rate is normal (edge keepalives). 'MaxData'/'MaxStreamData' are flow control updates. 'ResetStream' from edge may indicate request cancellation by client.")); pid += 1
 y += 8
 
+panels.append(ts_panel(pid, "QUIC Connection Lifecycle", [
+    t(f"sum(rate(quic_client_total_connections{JOB}[$__rate_interval]))", "New Connections/sec"),
+    t(f"sum(rate(quic_client_closed_connections{JOB}[$__rate_interval]))", "Closed Connections/sec", "B"),
+], 0, y, fill=10,
+    overrides=[color_override("New Connections/sec", "green"), color_override("Closed Connections/sec", "red")],
+    desc="QUIC connection creation vs closure rate. New connections happen at startup and during reconnections. Frequent closures may indicate network instability or edge-side disconnects.")); pid += 1
+
+panels.append(ts_panel(pid, "Oversized Packet Drops", [
+    t(f"sum(rate(quic_client_packet_too_big_dropped{JOB}[$__rate_interval]))", "Packets Dropped/sec")
+], 12, y, fill=10,
+    overrides=[color_override("Packets Dropped/sec", "red")],
+    desc="Rate of QUIC packets dropped because they exceeded the path MTU. Non-zero indicates MTU discovery issues — check for MTU blackholes or misconfigured network equipment between cloudflared and edge.")); pid += 1
+y += 8
+
 # ============================================================
 # ROW: Latency
 # ============================================================

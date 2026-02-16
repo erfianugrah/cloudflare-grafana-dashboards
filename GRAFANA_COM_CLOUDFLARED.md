@@ -1,6 +1,6 @@
 # Cloudflare Tunnel (cloudflared) Dashboard
 
-Comprehensive monitoring dashboard for [cloudflared](https://github.com/cloudflare/cloudflared) tunnel deployments. **56 panels across 9 sections** covering tunnel health, capacity planning, QUIC transport, latency analysis, and process resources.
+Comprehensive monitoring dashboard for [cloudflared](https://github.com/cloudflare/cloudflared) tunnel deployments. **58 panels across 9 sections** covering tunnel health, capacity planning, QUIC transport, latency analysis, and process resources.
 
 Every panel includes a description tooltip explaining what it shows and why it matters.
 
@@ -31,8 +31,8 @@ HA connection status per tunnel, tunnel registration events, timer retries, TCP/
 ### Edge Locations (2 panels)
 Current edge colo connections and server location details.
 
-### QUIC Transport (9 panels)
-Per-connection metrics: latest RTT, smoothed RTT, minimum RTT, congestion window size, MTU, congestion state, lost packets by reason, and sent/received frame counts.
+### QUIC Transport (11 panels)
+Per-connection metrics: latest RTT, smoothed RTT, minimum RTT, congestion window size, MTU, congestion state, lost packets by reason, sent/received frame counts, connection lifecycle (new vs closed connections), and oversized packet drops.
 
 ### Latency (4 panels)
 Proxy connect latency histogram quantiles (p50/p90/p99) and RPC client/server latency distributions.
