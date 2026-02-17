@@ -1,6 +1,6 @@
 # Cloudflare Logpush Dashboard
 
-Comprehensive analytics dashboard for Cloudflare Logpush data stored in Loki. **122 panels across 12 sections** covering HTTP traffic, cache performance, security/firewall events, API & rate limiting, WAF attack analysis, threat intelligence, bot detection, request rate analysis, request/response sizing, and Workers.
+Comprehensive analytics dashboard for Cloudflare Logpush data stored in Loki. **135 panels across 12 sections** covering HTTP traffic, cache performance, security/firewall events, API & rate limiting, WAF attack analysis, threat intelligence, bot detection, request rate analysis, bandwidth cost analysis, and Workers.
 
 8 template variable filters (zone, host, path, IP, country, JA4, ASN, colo) for deep drill-down. Every panel includes a description tooltip.
 
@@ -20,7 +20,7 @@ Total requests, 5xx error rate, cache hit ratio, firewall events, leaked credent
 Status codes (color-coded 2xx/3xx/4xx/5xx), request methods, protocols, request source (eyeball vs worker), top paths, bot user agents, error rate by path, edge pathing decisions, HTTP vs HTTPS, geomap (world map by country), requests by country and colo (top 10), top client ASNs with name resolution, device types, top referers, TLS versions/ciphers, origin SSL protocol, mTLS authentication, content scan results, orange-to-orange traffic.
 
 ### Performance (13 panels)
-Request lifecycle breakdown (stacked: Client-Edge RTT, Edge Processing, Edge-Origin), TTFB/origin/RTT percentiles (avg/p50/p75/p90/p95/p99), edge processing time, origin timing sub-components (DNS/TCP/TLS/headers), by-host and by-ASN breakdowns, origin error rate by IP, origin vs edge status mismatch.
+Request lifecycle breakdown (stacked: Client-Edge RTT, Edge Processing, Edge-Origin), TTFB/origin/RTT percentiles (avg/p50/p75/p90/p95/p99), edge processing time, origin timing sub-components (DNS/TCP/TLS/headers), by-host and by-ASN breakdowns, origin error rate by IP, edge→origin status pairs.
 
 ### Cache Performance (11 panels)
 Cache status over time + pie chart, hit ratio trend, hit ratio by host (zone), hit ratio by path (top 10 using `approx_topk`), tiered cache fill rate, Cache Reserve usage, edge/cache response bytes, content type distribution, compression ratio, Argo Smart Routing usage.
@@ -37,14 +37,14 @@ WAF attack score buckets (high/medium/low risk), attack type breakdown (SQLi/XSS
 ### Threat Intelligence (9 panels)
 Leaked credential check results, fraud detection signals, top talkers by IP, suspicious user agents (bot score < 30), fraud detection tags/IDs, top client regions (subnational ISO 3166-2), firewall event request URIs (path + query string), geo anomaly on sensitive paths.
 
-### Bot Analysis (9 panels)
-Bot score distribution (bot/possibly-bot/human), bot score source engine (ML/Heuristics/JS Fingerprinting), verified bot categories, JS detection pass/fail, bot tags distribution, bot detection tags detail, bot detection IDs (account takeover, scraping, residential proxy, AI crawlers — with value mappings), top JA4 TLS fingerprints, top JA3 hashes.
+### Bot Analysis (8 panels)
+Bot score distribution (bot/possibly-bot/human), bot score source engine (ML/Heuristics/JS Fingerprinting), verified bot categories, JS detection pass/fail, bot traffic by path and IP (score < 30), bot detection IDs with inline value-mapped descriptions (account takeover, scraping, residential proxy, AI crawlers, machine learning, heuristic, verified bot — 33 known IDs), bot fingerprints by JA4.
 
 ### Request Rate Analysis (7 panels)
-Request velocity and burst detection — our version of Cloudflare's rate limiting request rate model. Requests/sec by IP, path, ASN, and edge colo (rate limiting counters are per-colo). Burst detection tables showing top IPs, paths, and JA4 fingerprints by peak request rate.
+Request velocity and burst detection — mirrors Cloudflare's rate limiting request rate model. Requests/sec by IP, ASN, and edge colo (rate limiting counters are per-colo). Requests by path (count-based to avoid high-cardinality rate() explosion). Volume tables: top IPs, paths, and JA4 fingerprints by total request count using `approx_topk`.
 
-### Request & Response Size (6 panels)
-Client request bytes (avg/p95), edge response body bytes (avg/p95), largest uploads by path (>10KB), largest responses by path (>100KB), total bandwidth (inbound + outbound stacked), response size by host.
+### Request & Response Size (8 panels)
+Client request bytes (avg/p95), edge response body bytes (avg/p95), largest uploads by path (>10KB), largest responses by path (>100KB), requests by host, bandwidth by host — CF→Eyeball (EdgeResponseBytes, what Cloudflare charges), bandwidth by host — Origin→CF (cache misses only, what your origin provider may charge for egress), CF→Eyeball vs Origin→CF total comparison showing bandwidth savings from caching.
 
 ### Workers (9 panels)
 Worker outcomes (ok/exception/exceeded), CPU time by script (avg/p95), wall time, invocations by script, script version tracking, subrequest count, event types (fetch/cron/alarm/queue), exceptions table, status by script.

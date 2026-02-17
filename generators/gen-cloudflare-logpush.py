@@ -651,10 +651,10 @@ panels.append(table_panel(pid, "Origin Error Rate by IP (5xx)",
     "{{OriginIP}}", 0, y, w=12,
     desc="Origin server IPs returning the most 5xx errors. Helps identify unhealthy origin instances.")); pid += 1
 
-panels.append(ts_panel(pid, "Origin vs Edge Status Mismatch", [
-    t(f'topk(10, sum by (EdgeResponseStatus, OriginResponseStatus) (count_over_time({http("EdgeResponseStatus", "OriginResponseStatus")} | OriginResponseStatus > 0 | EdgeResponseStatus != OriginResponseStatus [$__auto])))', "edge={{EdgeResponseStatus}} \u2192 origin={{OriginResponseStatus}}")
+panels.append(ts_panel(pid, "Edge → Origin Status Pairs", [
+    t(f'topk(10, sum by (EdgeResponseStatus, OriginResponseStatus) (count_over_time({http("EdgeResponseStatus", "OriginResponseStatus")} | OriginResponseStatus > 0 [$__auto])))', "edge={{EdgeResponseStatus}} → origin={{OriginResponseStatus}}")
 ], 12, y, stack=False, fill=10,
-    desc="Requests where the edge status code differs from origin. Grouped by edge\u2192origin status pair, filtered to origin-fetched requests only. Shows edge transformations like 5xx\u21924xx (custom error pages) or 2xx\u21925xx (stale cache served).")); pid += 1
+    desc="Edge vs origin status code pairs for origin-fetched requests. Matching pairs (200→200) are normal. Mismatches reveal edge transformations: 200→500 = stale cache served despite origin error, 403→200 = WAF blocked what origin allowed, 520→502 = Cloudflare converted origin error.")); pid += 1
 y += 8
 
 # ============================================================
@@ -988,70 +988,78 @@ panels.append(ts_panel(pid, "JS Detection Pass/Fail", [
     desc="JavaScript fingerprinting challenge results. 'failed' = client did not execute JS (likely headless bot). 'missing' = challenge not served.")); pid += 1
 y += 8
 
-panels.append(bar_panel(pid, "Bot Tags Distribution", [
-    t(f'sum by (BotTags) (count_over_time({http("BotTags")} | BotTags != `` | BotTags != `[]` [$__auto]))', "{{BotTags}}")
-], 0, y, w=12, desc="Cloudflare Bot Management tags assigned to requests. Tags provide additional classification detail beyond the numeric BotScore (e.g., 'likely_automated', 'verified_bot').")); pid += 1
-
-panels.append(table_panel(pid, "Bot Detection Tags Detail",
-    f'topk(25, sum by (BotDetectionTags) (count_over_time({http("BotDetectionTags")} | BotDetectionTags != `` | BotDetectionTags != `[]` [$__range])))',
-    "{{BotDetectionTags}}", 12, y, w=12,
-    desc="Detailed bot detection signals. BotDetectionTags provides granular information about why a request was classified as bot traffic.")); pid += 1
-y += 8
-
-# Bot Detection IDs — maps numeric IDs to known Cloudflare detection types
-_BOT_DETECTION_ID_MAPPINGS = {
+# Bot Detection IDs — maps numeric IDs to known Cloudflare detection types.
+# Values arrive as arrays like [33554817] or [152120193,158359277].
+# Use regex mappings so each pattern matches the ID anywhere in the string.
+_KNOWN_BOT_IDS = [
     # Account Takeover
-    "201326592": {"text": "201326592 — ATO: Login Failures", "index": 0},
-    "201326593": {"text": "201326593 — ATO: Login Traffic", "index": 1},
-    "201326598": {"text": "201326598 — ATO: Dynamic Threshold", "index": 2},
+    ("201326592", "ATO: Login Failures"),
+    ("201326593", "ATO: Login Traffic"),
+    ("201326598", "ATO: Dynamic Threshold"),
     # Scraping
-    "50331648": {"text": "50331648 — Scraping: ASN Behavior", "index": 3},
-    "50331649": {"text": "50331649 — Scraping: JA4 Behavior", "index": 4},
-    # Additional
-    "50331651": {"text": "50331651 — Residential Proxy", "index": 5},
+    ("50331648", "Scraping: ASN Behavior"),
+    ("50331649", "Scraping: JA4 Behavior"),
+    # Residential Proxy
+    ("50331651", "Residential Proxy"),
     # AI Crawlers (from CF docs)
-    "123815556": {"text": "123815556 — GPTBot (OpenAI)", "index": 6},
-    "132995013": {"text": "132995013 — ChatGPT-User (OpenAI)", "index": 7},
-    "126255384": {"text": "126255384 — OAI-SearchBot (OpenAI)", "index": 8},
-    "33554461": {"text": "33554461 — Bingbot (Microsoft)", "index": 9},
-    "117479730": {"text": "117479730 — Bingbot (Microsoft)", "index": 10},
-    "33563853": {"text": "33563853 — Bytespider (ByteDance)", "index": 11},
-    "133621792": {"text": "133621792 — CCBot (Common Crawl)", "index": 12},
-    "33563855": {"text": "33563855 — CCBot (Common Crawl)", "index": 13},
-    "124581738": {"text": "124581738 — Meta-ExternalAgent", "index": 14},
-    "33563982": {"text": "33563982 — Meta-ExternalAgent", "index": 15},
-    "132272919": {"text": "132272919 — Meta-ExternalFetcher", "index": 16},
-    "33563980": {"text": "33563980 — Meta-ExternalFetcher", "index": 17},
-    "33563972": {"text": "33563972 — FacebookBot (Meta)", "index": 18},
-    "120424214": {"text": "120424214 — Applebot (Apple)", "index": 19},
-    "33563845": {"text": "33563845 — Applebot (Apple)", "index": 20},
-    "118601807": {"text": "118601807 — Amazonbot (Amazon)", "index": 21},
-    "33563839": {"text": "33563839 — Amazonbot (Amazon)", "index": 22},
-    "126666910": {"text": "126666910 — DuckAssistBot (DuckDuckGo)", "index": 23},
-    "33564037": {"text": "33564037 — DuckAssistBot (DuckDuckGo)", "index": 24},
-    "128950951": {"text": "128950951 — MistralAI-User (Mistral)", "index": 25},
-    "33564323": {"text": "33564323 — MistralAI-User (Mistral)", "index": 26},
-    "33554817": {"text": "33554817 — Heuristic Detection", "index": 27},
-}
+    ("123815556", "GPTBot (OpenAI)"),
+    ("132995013", "ChatGPT-User (OpenAI)"),
+    ("126255384", "OAI-SearchBot (OpenAI)"),
+    ("33554461", "Bingbot (Microsoft)"),
+    ("117479730", "Bingbot (Microsoft)"),
+    ("33563853", "Bytespider (ByteDance)"),
+    ("133621792", "CCBot (Common Crawl)"),
+    ("33563855", "CCBot (Common Crawl)"),
+    ("124581738", "Meta-ExternalAgent"),
+    ("33563982", "Meta-ExternalAgent"),
+    ("132272919", "Meta-ExternalFetcher"),
+    ("33563980", "Meta-ExternalFetcher"),
+    ("33563972", "FacebookBot (Meta)"),
+    ("120424214", "Applebot (Apple)"),
+    ("33563845", "Applebot (Apple)"),
+    ("118601807", "Amazonbot (Amazon)"),
+    ("33563839", "Amazonbot (Amazon)"),
+    ("126666910", "DuckAssistBot (DuckDuckGo)"),
+    ("33564037", "DuckAssistBot (DuckDuckGo)"),
+    ("128950951", "MistralAI-User (Mistral)"),
+    ("33564323", "MistralAI-User (Mistral)"),
+    ("33554817", "Heuristic Detection"),
+    ("33554452", "Machine Learning"),
+    ("33554913", "Verified Bot"),
+    ("33563831", "Googlebot (Google)"),
+    ("152120193", "AI Crawler"),
+    ("158359277", "AI Crawler"),
+]
+# Build value mappings for [ID] (single-element array) format
+_BOT_DETECTION_ID_MAPPINGS = {}
+for i, (id_str, desc) in enumerate(_KNOWN_BOT_IDS):
+    _BOT_DETECTION_ID_MAPPINGS[f"[{id_str}]"] = {"text": f"{id_str} — {desc}", "index": i}
+_BOT_ID_OVERRIDE = {"matcher": {"id": "byName", "options": "BotDetectionIDs"}, "properties": [
+    {"id": "mappings", "value": [{"type": "value", "options": _BOT_DETECTION_ID_MAPPINGS}]}
+]}
+
+# Bot tables — each panel groups by one primary dimension to avoid cardinality explosion
+panels.append(table_panel(pid, "Bot Traffic by Path (score < 30)",
+    f'approx_topk(25, sum by (ClientRequestPath) (count_over_time({http("BotScore")} | BotScore > 0 | BotScore < 30 [$__range])))',
+    "{{ClientRequestPath}}", 0, y, w=12,
+    desc="Paths targeted by likely-bot traffic (BotScore 1-29). Shows which endpoints bots are hitting most. Cross-reference with Detection IDs and Fingerprints panels for the full picture.")); pid += 1
+
+panels.append(table_panel(pid, "Bot Traffic by IP (score < 30)",
+    f'approx_topk(25, sum by (ClientIP) (count_over_time({http("BotScore")} | BotScore > 0 | BotScore < 30 [$__range])))',
+    "{{ClientIP}}", 12, y, w=12,
+    desc="IPs sending the most bot traffic (BotScore 1-29). Use the IP filter variable to drill into a specific IP's paths, user agents, and detection IDs.")); pid += 1
+y += 8
 
 panels.append(table_panel(pid, "Bot Detection IDs",
-    f'topk(25, sum by (BotDetectionIDs) (count_over_time({http("BotDetectionIDs")} | BotDetectionIDs != `` | BotDetectionIDs != `[]` [$__range])))',
-    "{{BotDetectionIDs}}", 0, y, w=24,
-    extra_overrides=[{"matcher": {"id": "byName", "options": "BotDetectionIDs"}, "properties": [
-        {"id": "mappings", "value": [{"type": "value", "options": _BOT_DETECTION_ID_MAPPINGS}]}
-    ]}],
-    desc="Bot Management detection IDs triggered on requests. Maps to specific detection types: Account Takeover (201326xxx), Scraping (50331648/49), Residential Proxy (50331651), AI Crawlers, and Heuristic detections. Use these IDs in custom WAF rules with cf.bot_management.detection_ids.")); pid += 1
-y += 8
+    f'approx_topk(25, sum by (BotDetectionIDs) (count_over_time({http("BotDetectionIDs")} | BotDetectionIDs != `` | BotDetectionIDs != `[]` [$__range])))',
+    "{{BotDetectionIDs}}", 0, y, w=12,
+    extra_overrides=[_BOT_ID_OVERRIDE],
+    desc="Which bot detection types are firing most. Account Takeover (201326xxx), Scraping (50331648/49), Residential Proxy (50331651), AI Crawlers, Heuristic. Use these IDs in cf.bot_management.detection_ids WAF rules.")); pid += 1
 
-panels.append(table_panel(pid, "Top JA4 TLS Fingerprints",
-    f'approx_topk(25, sum by (JA4) (count_over_time({http()} | JA4 != `` [$__range])))',
-    "{{JA4}}", 0, y, w=12,
-    desc="Top JA4 TLS fingerprints. JA4 identifies TLS client implementations (browsers, bots, libraries). Same fingerprint = same TLS stack.")); pid += 1
-
-panels.append(table_panel(pid, "Top JA3 Hashes",
-    f'approx_topk(25, sum by (JA3Hash) (count_over_time({http("JA3Hash")} | JA3Hash != `` [$__range])))',
-    "{{JA3Hash}}", 12, y, w=12,
-    desc="Top JA3 TLS fingerprint hashes. Legacy fingerprinting method (predecessor to JA4). Useful for identifying known malicious TLS implementations.")); pid += 1
+panels.append(table_panel(pid, "Bot Fingerprints by JA4 (score < 30)",
+    f'approx_topk(25, sum by (JA4) (count_over_time({http("BotScore")} | JA4 != `` | BotScore > 0 | BotScore < 30 [$__range])))',
+    "{{JA4}}", 12, y, w=12,
+    desc="TLS fingerprints of bot traffic. Same JA4 = same TLS stack regardless of IP rotation. Use JA4 as a rate limiting characteristic in WAF rules to catch distributed bots.")); pid += 1
 y += 8
 
 # ============================================================
@@ -1064,10 +1072,10 @@ panels.append(ts_panel(pid, "Requests/sec by IP (Top 10)", [
 ], 0, y, unit="reqps", stack=False, fill=10,
     desc="Per-IP request rate (requests/second). Identifies IPs sending traffic at high velocity. Cloudflare rate limiting counters track per-IP rates — this shows what those counters see.")); pid += 1
 
-panels.append(ts_panel(pid, "Requests/sec by Path (Top 10)", [
-    t(f"topk(10, sum by (ClientRequestPath) (rate({http()} [$__auto])))", "{{ClientRequestPath}}")
-], 12, y, unit="reqps", stack=False, fill=10,
-    desc="Per-path request rate. Identifies endpoints receiving the highest request velocity. Useful for tuning rate limiting rule thresholds per endpoint.")); pid += 1
+panels.append(ts_panel(pid, "Requests by Path (Top 10)", [
+    t(f"topk(10, sum by (ClientRequestPath) (count_over_time({http()} [$__auto])))", "{{ClientRequestPath}}")
+], 12, y, unit="short", stack=False, fill=10,
+    desc="Per-path request count per interval. Identifies endpoints receiving the most traffic. Uses count_over_time instead of rate() to reduce cardinality pressure on high-cardinality path labels.")); pid += 1
 y += 8
 
 panels.append(ts_panel(pid, "Requests/sec by ASN (Top 10)", [
@@ -1081,47 +1089,20 @@ panels.append(ts_panel(pid, "Requests/sec by Edge Colo (Top 10)", [
     desc="Per-datacenter request rate. Cloudflare rate limiting counters are per-colo (not global). A rate limit of 100 req/10s means 100 per colo, so total allowed traffic = rate × number of active colos.")); pid += 1
 y += 8
 
-panels.append(table_panel(pid, "Top IPs by Peak Request Rate",
-    f"topk(25, max by (ClientIP) (rate({http()} [$__auto])))",
+panels.append(table_panel(pid, "Top IPs by Request Volume",
+    f"approx_topk(25, sum by (ClientIP) (count_over_time({http()} [$__range])))",
     "{{ClientIP}}", 0, y, w=8,
-    extra_overrides=[
-        {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [
-            {"id": "displayName", "value": "Peak req/s"},
-            {"id": "unit", "value": "reqps"},
-            {"id": "custom.width", "value": 120},
-            {"id": "custom.cellOptions", "value": {"mode": "basic", "type": "gauge", "valueDisplayMode": "text"}},
-        ]},
-        {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.hidden", "value": True}]},
-    ],
-    desc="IPs with the highest peak request rate during the time range. These are the strongest candidates for rate limiting rules.")); pid += 1
+    desc="IPs with the highest total request count during the time range. These are the strongest candidates for rate limiting rules.")); pid += 1
 
-panels.append(table_panel(pid, "Top Paths by Peak Request Rate",
-    f"topk(25, max by (ClientRequestPath) (rate({http()} [$__auto])))",
+panels.append(table_panel(pid, "Top Paths by Request Volume",
+    f"approx_topk(25, sum by (ClientRequestPath) (count_over_time({http()} [$__range])))",
     "{{ClientRequestPath}}", 8, y, w=8,
-    extra_overrides=[
-        {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [
-            {"id": "displayName", "value": "Peak req/s"},
-            {"id": "unit", "value": "reqps"},
-            {"id": "custom.width", "value": 120},
-            {"id": "custom.cellOptions", "value": {"mode": "basic", "type": "gauge", "valueDisplayMode": "text"}},
-        ]},
-        {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.hidden", "value": True}]},
-    ],
-    desc="Paths with the highest peak request rate. Use to set per-endpoint rate limiting thresholds — a login endpoint should have a much lower threshold than a static asset path.")); pid += 1
+    desc="Paths with the most requests. Use to set per-endpoint rate limiting thresholds — a login endpoint should have a much lower threshold than a static asset path.")); pid += 1
 
-panels.append(table_panel(pid, "Top JA4 by Peak Request Rate",
-    f"topk(25, max by (JA4) (rate({http()} | JA4 != `` [$__auto])))",
+panels.append(table_panel(pid, "Top JA4 by Request Volume",
+    f"approx_topk(25, sum by (JA4) (count_over_time({http()} | JA4 != `` [$__range])))",
     "{{JA4}}", 16, y, w=8,
-    extra_overrides=[
-        {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [
-            {"id": "displayName", "value": "Peak req/s"},
-            {"id": "unit", "value": "reqps"},
-            {"id": "custom.width", "value": 120},
-            {"id": "custom.cellOptions", "value": {"mode": "basic", "type": "gauge", "valueDisplayMode": "text"}},
-        ]},
-        {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.hidden", "value": True}]},
-    ],
-    desc="TLS fingerprints with the highest peak request rate. JA4 is a rate limiting characteristic — same TLS stack = same fingerprint regardless of IP rotation.")); pid += 1
+    desc="TLS fingerprints with the most requests. JA4 is a rate limiting characteristic — same TLS stack = same fingerprint regardless of IP rotation.")); pid += 1
 y += 8
 
 # ============================================================
@@ -1171,17 +1152,29 @@ panels.append(table_panel(pid, "Largest Responses by Path (avg response bytes)",
     desc="Paths serving the largest responses (>100KB average). Candidates for compression, CDN caching, or image optimization.")); pid += 1
 y += 8
 
-panels.append(ts_panel(pid, "Total Bandwidth (Request + Response)", [
-    t(f"sum(sum_over_time({http('ClientRequestBytes')} | unwrap ClientRequestBytes [$__auto]))", "Request Bytes (inbound)"),
-    t(f"sum(sum_over_time({http('EdgeResponseBodyBytes')} | unwrap EdgeResponseBodyBytes [$__auto]))", "Response Body Bytes (outbound)", "B"),
-], 0, y, unit="bytes", stack=True, fill=50,
-    overrides=[color_override("Request Bytes (inbound)", "green"), color_override("Response Body Bytes (outbound)", "blue")],
-    desc="Total bandwidth: inbound (client request bytes) and outbound (edge response body bytes). Stacked to show the ratio of upload vs download traffic.")); pid += 1
+panels.append(ts_panel(pid, "Requests by Host", [
+    t(f"sum by (ClientRequestHost) (count_over_time({http()} [$__auto]))", "{{ClientRequestHost}}")
+], 0, y, unit="short", stack=True, fill=50,
+    desc="Request volume per host. Shows traffic distribution across your zones/subdomains.")); pid += 1
 
-panels.append(ts_panel(pid, "Response Size by Host (avg)", [
-    t(f"avg by (ClientRequestHost) (avg_over_time({http('EdgeResponseBodyBytes')} | unwrap EdgeResponseBodyBytes [$__auto]))", "{{ClientRequestHost}}")
-], 12, y, unit="bytes", stack=False, fill=10, legend_calcs=["mean", "lastNotNull"],
-    desc="Average response body size per zone. Identifies which zones serve the largest payloads.")); pid += 1
+panels.append(ts_panel(pid, "Bandwidth by Host — CF → Eyeball (charged)", [
+    t(f"sum by (ClientRequestHost) (sum_over_time({http('EdgeResponseBytes')} | unwrap EdgeResponseBytes [$__auto]))", "{{ClientRequestHost}}")
+], 12, y, unit="bytes", stack=True, fill=50,
+    desc="Total bytes Cloudflare sends to visitors (EdgeResponseBytes) per host. This is what Cloudflare bills on — includes headers + body. The primary metric for bandwidth cost analysis.")); pid += 1
+y += 8
+
+_origin_cache_miss = '| CacheCacheStatus != `` | CacheCacheStatus != `hit` | CacheCacheStatus != `stale` | CacheCacheStatus != `revalidated`'
+panels.append(ts_panel(pid, "Bandwidth by Host — Origin → CF (informational)", [
+    t(f"sum by (ClientRequestHost) (sum_over_time({http('EdgeResponseBytes', 'CacheCacheStatus')} {_origin_cache_miss} | unwrap EdgeResponseBytes [$__auto]))", "{{ClientRequestHost}}")
+], 0, y, unit="bytes", stack=True, fill=50,
+    desc="Bytes pulled from origin to Cloudflare per host (cache misses only). Not charged by Cloudflare, but may incur egress costs from your origin provider (AWS, GCP, etc). Filtered to CacheCacheStatus != hit/stale/revalidated.")); pid += 1
+
+panels.append(ts_panel(pid, "CF → Eyeball vs Origin → CF (total)", [
+    t(f"sum(sum_over_time({http('EdgeResponseBytes')} | unwrap EdgeResponseBytes [$__auto]))", "CF → Eyeball (charged)"),
+    t(f"sum(sum_over_time({http('EdgeResponseBytes', 'CacheCacheStatus')} {_origin_cache_miss} | unwrap EdgeResponseBytes [$__auto]))", "Origin → CF (informational)", "B"),
+], 12, y, unit="bytes", stack=False, fill=10,
+    overrides=[color_override("CF → Eyeball (charged)", "blue"), color_override("Origin → CF (informational)", "orange")],
+    desc="Comparison of total bandwidth: CF→Eyeball (EdgeResponseBytes, what Cloudflare charges) vs Origin→CF (cache misses only, what your origin provider may charge for egress). The gap between the lines is bandwidth saved by caching.")); pid += 1
 y += 8
 
 # ============================================================

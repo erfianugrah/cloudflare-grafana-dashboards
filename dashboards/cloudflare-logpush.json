@@ -8052,7 +8052,7 @@
               "sort": "desc"
             }
           },
-          "title": "Origin vs Edge Status Mismatch",
+          "title": "Edge \u2192 Origin Status Pairs",
           "type": "timeseries",
           "targets": [
             {
@@ -8060,13 +8060,13 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "topk(10, sum by (EdgeResponseStatus, OriginResponseStatus) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseStatus, JA4, OriginResponseStatus, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseStatus > 0 | EdgeResponseStatus != OriginResponseStatus [$__auto])))",
+              "expr": "topk(10, sum by (EdgeResponseStatus, OriginResponseStatus) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseStatus, JA4, OriginResponseStatus, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | OriginResponseStatus > 0 [$__auto])))",
               "legendFormat": "edge={{EdgeResponseStatus}} \u2192 origin={{OriginResponseStatus}}",
               "refId": "A",
               "queryType": "range"
             }
           ],
-          "description": "Requests where the edge status code differs from origin. Grouped by edge\u2192origin status pair, filtered to origin-fetched requests only. Shows edge transformations like 5xx\u21924xx (custom error pages) or 2xx\u21925xx (stale cache served)."
+          "description": "Edge vs origin status code pairs for origin-fetched requests. Matching pairs (200\u2192200) are normal. Mismatches reveal edge transformations: 200\u2192500 = stale cache served despite origin error, 403\u2192200 = WAF blocked what origin allowed, 520\u2192502 = Cloudflare converted origin error."
         }
       ],
       "title": "Performance",
@@ -18485,34 +18485,11 @@
                 "mode": "palette-classic"
               },
               "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "bars",
-                "fillOpacity": 80,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
                 },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "normal"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "inspect": false
               },
               "mappings": [],
               "thresholds": {
@@ -18523,10 +18500,46 @@
                     "value": null
                   }
                 ]
-              },
-              "unit": "short"
+              }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #A"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 100
+                  },
+                  {
+                    "id": "displayName",
+                    "value": "Count"
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "mode": "basic",
+                      "type": "gauge",
+                      "valueDisplayMode": "text"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
             "h": 8,
@@ -18536,34 +18549,47 @@
           },
           "id": 105,
           "options": {
-            "legend": {
-              "calcs": [
-                "sum",
-                "mean"
-              ],
-              "displayMode": "table",
-              "placement": "bottom"
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
             },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Count"
+              }
+            ]
           },
-          "title": "Bot Tags Distribution",
-          "type": "timeseries",
+          "title": "Bot Traffic by Path (score < 30)",
+          "type": "table",
+          "transformations": [
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Value #A",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
           "targets": [
             {
               "datasource": {
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum by (BotTags) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotTags, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotTags != `` | BotTags != `[]` [$__auto]))",
-              "legendFormat": "{{BotTags}}",
+              "expr": "approx_topk(25, sum by (ClientRequestPath) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotScore, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotScore > 0 | BotScore < 30 [$__range])))",
+              "legendFormat": "{{ClientRequestPath}}",
               "refId": "A",
-              "queryType": "range"
+              "instant": true,
+              "format": "table"
             }
           ],
-          "description": "Cloudflare Bot Management tags assigned to requests. Tags provide additional classification detail beyond the numeric BotScore (e.g., 'likely_automated', 'verified_bot')."
+          "description": "Paths targeted by likely-bot traffic (BotScore 1-29). Shows which endpoints bots are hitting most. Cross-reference with Detection IDs and Fingerprints panels for the full picture."
         },
         {
           "datasource": {
@@ -18652,7 +18678,7 @@
               }
             ]
           },
-          "title": "Bot Detection Tags Detail",
+          "title": "Bot Traffic by IP (score < 30)",
           "type": "table",
           "transformations": [
             {
@@ -18673,14 +18699,14 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "topk(25, sum by (BotDetectionTags) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotDetectionTags, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotDetectionTags != `` | BotDetectionTags != `[]` [$__range])))",
-              "legendFormat": "{{BotDetectionTags}}",
+              "expr": "approx_topk(25, sum by (ClientIP) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotScore, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotScore > 0 | BotScore < 30 [$__range])))",
+              "legendFormat": "{{ClientIP}}",
               "refId": "A",
               "instant": true,
               "format": "table"
             }
           ],
-          "description": "Detailed bot detection signals. BotDetectionTags provides granular information about why a request was classified as bot traffic."
+          "description": "IPs sending the most bot traffic (BotScore 1-29). Use the IP filter variable to drill into a specific IP's paths, user agents, and detection IDs."
         },
         {
           "datasource": {
@@ -18759,117 +18785,137 @@
                       {
                         "type": "value",
                         "options": {
-                          "201326592": {
+                          "[201326592]": {
                             "text": "201326592 \u2014 ATO: Login Failures",
                             "index": 0
                           },
-                          "201326593": {
+                          "[201326593]": {
                             "text": "201326593 \u2014 ATO: Login Traffic",
                             "index": 1
                           },
-                          "201326598": {
+                          "[201326598]": {
                             "text": "201326598 \u2014 ATO: Dynamic Threshold",
                             "index": 2
                           },
-                          "50331648": {
+                          "[50331648]": {
                             "text": "50331648 \u2014 Scraping: ASN Behavior",
                             "index": 3
                           },
-                          "50331649": {
+                          "[50331649]": {
                             "text": "50331649 \u2014 Scraping: JA4 Behavior",
                             "index": 4
                           },
-                          "50331651": {
+                          "[50331651]": {
                             "text": "50331651 \u2014 Residential Proxy",
                             "index": 5
                           },
-                          "123815556": {
+                          "[123815556]": {
                             "text": "123815556 \u2014 GPTBot (OpenAI)",
                             "index": 6
                           },
-                          "132995013": {
+                          "[132995013]": {
                             "text": "132995013 \u2014 ChatGPT-User (OpenAI)",
                             "index": 7
                           },
-                          "126255384": {
+                          "[126255384]": {
                             "text": "126255384 \u2014 OAI-SearchBot (OpenAI)",
                             "index": 8
                           },
-                          "33554461": {
+                          "[33554461]": {
                             "text": "33554461 \u2014 Bingbot (Microsoft)",
                             "index": 9
                           },
-                          "117479730": {
+                          "[117479730]": {
                             "text": "117479730 \u2014 Bingbot (Microsoft)",
                             "index": 10
                           },
-                          "33563853": {
+                          "[33563853]": {
                             "text": "33563853 \u2014 Bytespider (ByteDance)",
                             "index": 11
                           },
-                          "133621792": {
+                          "[133621792]": {
                             "text": "133621792 \u2014 CCBot (Common Crawl)",
                             "index": 12
                           },
-                          "33563855": {
+                          "[33563855]": {
                             "text": "33563855 \u2014 CCBot (Common Crawl)",
                             "index": 13
                           },
-                          "124581738": {
+                          "[124581738]": {
                             "text": "124581738 \u2014 Meta-ExternalAgent",
                             "index": 14
                           },
-                          "33563982": {
+                          "[33563982]": {
                             "text": "33563982 \u2014 Meta-ExternalAgent",
                             "index": 15
                           },
-                          "132272919": {
+                          "[132272919]": {
                             "text": "132272919 \u2014 Meta-ExternalFetcher",
                             "index": 16
                           },
-                          "33563980": {
+                          "[33563980]": {
                             "text": "33563980 \u2014 Meta-ExternalFetcher",
                             "index": 17
                           },
-                          "33563972": {
+                          "[33563972]": {
                             "text": "33563972 \u2014 FacebookBot (Meta)",
                             "index": 18
                           },
-                          "120424214": {
+                          "[120424214]": {
                             "text": "120424214 \u2014 Applebot (Apple)",
                             "index": 19
                           },
-                          "33563845": {
+                          "[33563845]": {
                             "text": "33563845 \u2014 Applebot (Apple)",
                             "index": 20
                           },
-                          "118601807": {
+                          "[118601807]": {
                             "text": "118601807 \u2014 Amazonbot (Amazon)",
                             "index": 21
                           },
-                          "33563839": {
+                          "[33563839]": {
                             "text": "33563839 \u2014 Amazonbot (Amazon)",
                             "index": 22
                           },
-                          "126666910": {
+                          "[126666910]": {
                             "text": "126666910 \u2014 DuckAssistBot (DuckDuckGo)",
                             "index": 23
                           },
-                          "33564037": {
+                          "[33564037]": {
                             "text": "33564037 \u2014 DuckAssistBot (DuckDuckGo)",
                             "index": 24
                           },
-                          "128950951": {
+                          "[128950951]": {
                             "text": "128950951 \u2014 MistralAI-User (Mistral)",
                             "index": 25
                           },
-                          "33564323": {
+                          "[33564323]": {
                             "text": "33564323 \u2014 MistralAI-User (Mistral)",
                             "index": 26
                           },
-                          "33554817": {
+                          "[33554817]": {
                             "text": "33554817 \u2014 Heuristic Detection",
                             "index": 27
+                          },
+                          "[33554452]": {
+                            "text": "33554452 \u2014 Machine Learning",
+                            "index": 28
+                          },
+                          "[33554913]": {
+                            "text": "33554913 \u2014 Verified Bot",
+                            "index": 29
+                          },
+                          "[33563831]": {
+                            "text": "33563831 \u2014 Googlebot (Google)",
+                            "index": 30
+                          },
+                          "[152120193]": {
+                            "text": "152120193 \u2014 AI Crawler",
+                            "index": 31
+                          },
+                          "[158359277]": {
+                            "text": "158359277 \u2014 AI Crawler",
+                            "index": 32
                           }
                         }
                       }
@@ -18881,7 +18927,7 @@
           },
           "gridPos": {
             "h": 8,
-            "w": 24,
+            "w": 12,
             "x": 0,
             "y": 343
           },
@@ -18920,131 +18966,14 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "topk(25, sum by (BotDetectionIDs) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotDetectionIDs, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotDetectionIDs != `` | BotDetectionIDs != `[]` [$__range])))",
+              "expr": "approx_topk(25, sum by (BotDetectionIDs) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotDetectionIDs, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotDetectionIDs != `` | BotDetectionIDs != `[]` [$__range])))",
               "legendFormat": "{{BotDetectionIDs}}",
               "refId": "A",
               "instant": true,
               "format": "table"
             }
           ],
-          "description": "Bot Management detection IDs triggered on requests. Maps to specific detection types: Account Takeover (201326xxx), Scraping (50331648/49), Residential Proxy (50331651), AI Crawlers, and Heuristic detections. Use these IDs in custom WAF rules with cf.bot_management.detection_ids."
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${DS_LOKI}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "align": "auto",
-                "cellOptions": {
-                  "type": "auto"
-                },
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Value #A"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 100
-                  },
-                  {
-                    "id": "displayName",
-                    "value": "Count"
-                  },
-                  {
-                    "id": "custom.cellOptions",
-                    "value": {
-                      "mode": "basic",
-                      "type": "gauge",
-                      "valueDisplayMode": "text"
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Time"
-                },
-                "properties": [
-                  {
-                    "id": "custom.hidden",
-                    "value": true
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 351
-          },
-          "id": 108,
-          "options": {
-            "showHeader": true,
-            "cellHeight": "sm",
-            "footer": {
-              "show": false
-            },
-            "sortBy": [
-              {
-                "desc": true,
-                "displayName": "Count"
-              }
-            ]
-          },
-          "title": "Top JA4 TLS Fingerprints",
-          "type": "table",
-          "transformations": [
-            {
-              "id": "sortBy",
-              "options": {
-                "sort": [
-                  {
-                    "field": "Value #A",
-                    "desc": true
-                  }
-                ]
-              }
-            }
-          ],
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${DS_LOKI}"
-              },
-              "expr": "approx_topk(25, sum by (JA4) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | JA4 != `` [$__range])))",
-              "legendFormat": "{{JA4}}",
-              "refId": "A",
-              "instant": true,
-              "format": "table"
-            }
-          ],
-          "description": "Top JA4 TLS fingerprints. JA4 identifies TLS client implementations (browsers, bots, libraries). Same fingerprint = same TLS stack."
+          "description": "Which bot detection types are firing most. Account Takeover (201326xxx), Scraping (50331648/49), Residential Proxy (50331651), AI Crawlers, Heuristic. Use these IDs in cf.bot_management.detection_ids WAF rules."
         },
         {
           "datasource": {
@@ -19117,9 +19046,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 351
+            "y": 343
           },
-          "id": 109,
+          "id": 108,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -19133,7 +19062,7 @@
               }
             ]
           },
-          "title": "Top JA3 Hashes",
+          "title": "Bot Fingerprints by JA4 (score < 30)",
           "type": "table",
           "transformations": [
             {
@@ -19154,14 +19083,14 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "approx_topk(25, sum by (JA3Hash) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA3Hash, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | JA3Hash != `` [$__range])))",
-              "legendFormat": "{{JA3Hash}}",
+              "expr": "approx_topk(25, sum by (JA4) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotScore, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | JA4 != `` | BotScore > 0 | BotScore < 30 [$__range])))",
+              "legendFormat": "{{JA4}}",
               "refId": "A",
               "instant": true,
               "format": "table"
             }
           ],
-          "description": "Top JA3 TLS fingerprint hashes. Legacy fingerprinting method (predecessor to JA4). Useful for identifying known malicious TLS implementations."
+          "description": "TLS fingerprints of bot traffic. Same JA4 = same TLS stack regardless of IP rotation. Use JA4 as a rate limiting characteristic in WAF rules to catch distributed bots."
         }
       ],
       "title": "Bot Analysis",
@@ -19173,9 +19102,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 359
+        "y": 351
       },
-      "id": 110,
+      "id": 109,
       "panels": [
         {
           "datasource": {
@@ -19235,9 +19164,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 360
+            "y": 352
           },
-          "id": 111,
+          "id": 110,
           "options": {
             "legend": {
               "calcs": [
@@ -19318,7 +19247,7 @@
                   }
                 ]
               },
-              "unit": "reqps"
+              "unit": "short"
             },
             "overrides": []
           },
@@ -19326,9 +19255,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 360
+            "y": 352
           },
-          "id": 112,
+          "id": 111,
           "options": {
             "legend": {
               "calcs": [
@@ -19343,7 +19272,7 @@
               "sort": "desc"
             }
           },
-          "title": "Requests/sec by Path (Top 10)",
+          "title": "Requests by Path (Top 10)",
           "type": "timeseries",
           "targets": [
             {
@@ -19351,13 +19280,13 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "topk(10, sum by (ClientRequestPath) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto])))",
+              "expr": "topk(10, sum by (ClientRequestPath) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto])))",
               "legendFormat": "{{ClientRequestPath}}",
               "refId": "A",
               "queryType": "range"
             }
           ],
-          "description": "Per-path request rate. Identifies endpoints receiving the highest request velocity. Useful for tuning rate limiting rule thresholds per endpoint."
+          "description": "Per-path request count per interval. Identifies endpoints receiving the most traffic. Uses count_over_time instead of rate() to reduce cardinality pressure on high-cardinality path labels."
         },
         {
           "datasource": {
@@ -19417,9 +19346,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 368
+            "y": 360
           },
-          "id": 113,
+          "id": 112,
           "options": {
             "legend": {
               "calcs": [
@@ -19508,9 +19437,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 368
+            "y": 360
           },
-          "id": 114,
+          "id": 113,
           "options": {
             "legend": {
               "calcs": [
@@ -19605,46 +19534,6 @@
                     "value": true
                   }
                 ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Value #A"
-                },
-                "properties": [
-                  {
-                    "id": "displayName",
-                    "value": "Peak req/s"
-                  },
-                  {
-                    "id": "unit",
-                    "value": "reqps"
-                  },
-                  {
-                    "id": "custom.width",
-                    "value": 120
-                  },
-                  {
-                    "id": "custom.cellOptions",
-                    "value": {
-                      "mode": "basic",
-                      "type": "gauge",
-                      "valueDisplayMode": "text"
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Time"
-                },
-                "properties": [
-                  {
-                    "id": "custom.hidden",
-                    "value": true
-                  }
-                ]
               }
             ]
           },
@@ -19652,9 +19541,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 376
+            "y": 368
           },
-          "id": 115,
+          "id": 114,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -19668,7 +19557,7 @@
               }
             ]
           },
-          "title": "Top IPs by Peak Request Rate",
+          "title": "Top IPs by Request Volume",
           "type": "table",
           "transformations": [
             {
@@ -19689,14 +19578,14 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "topk(25, max by (ClientIP) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto])))",
+              "expr": "approx_topk(25, sum by (ClientIP) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__range])))",
               "legendFormat": "{{ClientIP}}",
               "refId": "A",
               "instant": true,
               "format": "table"
             }
           ],
-          "description": "IPs with the highest peak request rate during the time range. These are the strongest candidates for rate limiting rules."
+          "description": "IPs with the highest total request count during the time range. These are the strongest candidates for rate limiting rules."
         },
         {
           "datasource": {
@@ -19740,46 +19629,6 @@
                   {
                     "id": "displayName",
                     "value": "Count"
-                  },
-                  {
-                    "id": "custom.cellOptions",
-                    "value": {
-                      "mode": "basic",
-                      "type": "gauge",
-                      "valueDisplayMode": "text"
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Time"
-                },
-                "properties": [
-                  {
-                    "id": "custom.hidden",
-                    "value": true
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Value #A"
-                },
-                "properties": [
-                  {
-                    "id": "displayName",
-                    "value": "Peak req/s"
-                  },
-                  {
-                    "id": "unit",
-                    "value": "reqps"
-                  },
-                  {
-                    "id": "custom.width",
-                    "value": 120
                   },
                   {
                     "id": "custom.cellOptions",
@@ -19809,9 +19658,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 376
+            "y": 368
           },
-          "id": 116,
+          "id": 115,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -19825,7 +19674,7 @@
               }
             ]
           },
-          "title": "Top Paths by Peak Request Rate",
+          "title": "Top Paths by Request Volume",
           "type": "table",
           "transformations": [
             {
@@ -19846,14 +19695,14 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "topk(25, max by (ClientRequestPath) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto])))",
+              "expr": "approx_topk(25, sum by (ClientRequestPath) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__range])))",
               "legendFormat": "{{ClientRequestPath}}",
               "refId": "A",
               "instant": true,
               "format": "table"
             }
           ],
-          "description": "Paths with the highest peak request rate. Use to set per-endpoint rate limiting thresholds \u2014 a login endpoint should have a much lower threshold than a static asset path."
+          "description": "Paths with the most requests. Use to set per-endpoint rate limiting thresholds \u2014 a login endpoint should have a much lower threshold than a static asset path."
         },
         {
           "datasource": {
@@ -19919,46 +19768,6 @@
                     "value": true
                   }
                 ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Value #A"
-                },
-                "properties": [
-                  {
-                    "id": "displayName",
-                    "value": "Peak req/s"
-                  },
-                  {
-                    "id": "unit",
-                    "value": "reqps"
-                  },
-                  {
-                    "id": "custom.width",
-                    "value": 120
-                  },
-                  {
-                    "id": "custom.cellOptions",
-                    "value": {
-                      "mode": "basic",
-                      "type": "gauge",
-                      "valueDisplayMode": "text"
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Time"
-                },
-                "properties": [
-                  {
-                    "id": "custom.hidden",
-                    "value": true
-                  }
-                ]
               }
             ]
           },
@@ -19966,9 +19775,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 376
+            "y": 368
           },
-          "id": 117,
+          "id": 116,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -19982,7 +19791,7 @@
               }
             ]
           },
-          "title": "Top JA4 by Peak Request Rate",
+          "title": "Top JA4 by Request Volume",
           "type": "table",
           "transformations": [
             {
@@ -20003,14 +19812,14 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "topk(25, max by (JA4) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | JA4 != `` [$__auto])))",
+              "expr": "approx_topk(25, sum by (JA4) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | JA4 != `` [$__range])))",
               "legendFormat": "{{JA4}}",
               "refId": "A",
               "instant": true,
               "format": "table"
             }
           ],
-          "description": "TLS fingerprints with the highest peak request rate. JA4 is a rate limiting characteristic \u2014 same TLS stack = same fingerprint regardless of IP rotation."
+          "description": "TLS fingerprints with the most requests. JA4 is a rate limiting characteristic \u2014 same TLS stack = same fingerprint regardless of IP rotation."
         }
       ],
       "title": "Request Rate Analysis",
@@ -20023,9 +19832,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 384
+        "y": 376
       },
-      "id": 118,
+      "id": 117,
       "panels": [
         {
           "datasource": {
@@ -20116,9 +19925,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 385
+            "y": 377
           },
-          "id": 119,
+          "id": 118,
           "options": {
             "legend": {
               "calcs": [
@@ -20248,9 +20057,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 385
+            "y": 377
           },
-          "id": 120,
+          "id": 119,
           "options": {
             "legend": {
               "calcs": [
@@ -20390,9 +20199,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 393
+            "y": 385
           },
-          "id": 121,
+          "id": 120,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -20535,9 +20344,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 393
+            "y": 385
           },
-          "id": 122,
+          "id": 121,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -20631,46 +20440,106 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "short"
             },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Request Bytes (inbound)"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "green",
-                      "mode": "fixed"
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Response Body Bytes (outbound)"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "blue",
-                      "mode": "fixed"
-                    }
-                  }
-                ]
-              }
-            ]
+            "overrides": []
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 401
+            "y": 393
+          },
+          "id": 122,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "title": "Requests by Host",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${DS_LOKI}"
+              },
+              "expr": "sum by (ClientRequestHost) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto]))",
+              "legendFormat": "{{ClientRequestHost}}",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "description": "Request volume per host. Shows traffic distribution across your zones/subdomains."
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 50,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 393
           },
           "id": 123,
           "options": {
@@ -20687,7 +20556,7 @@
               "sort": "desc"
             }
           },
-          "title": "Total Bandwidth (Request + Response)",
+          "title": "Bandwidth by Host \u2014 CF \u2192 Eyeball (charged)",
           "type": "timeseries",
           "targets": [
             {
@@ -20695,23 +20564,104 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(sum_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestBytes, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap ClientRequestBytes [$__auto]))",
-              "legendFormat": "Request Bytes (inbound)",
+              "expr": "sum by (ClientRequestHost) (sum_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseBytes, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeResponseBytes [$__auto]))",
+              "legendFormat": "{{ClientRequestHost}}",
               "refId": "A",
               "queryType": "range"
+            }
+          ],
+          "description": "Total bytes Cloudflare sends to visitors (EdgeResponseBytes) per host. This is what Cloudflare bills on \u2014 includes headers + body. The primary metric for bandwidth cost analysis."
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 50,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "bytes"
             },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 401
+          },
+          "id": 124,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "title": "Bandwidth by Host \u2014 Origin \u2192 CF (informational)",
+          "type": "timeseries",
+          "targets": [
             {
               "datasource": {
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "sum(sum_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseBodyBytes, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeResponseBodyBytes [$__auto]))",
-              "legendFormat": "Response Body Bytes (outbound)",
-              "refId": "B",
+              "expr": "sum by (ClientRequestHost) (sum_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json CacheCacheStatus, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseBytes, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | CacheCacheStatus != `` | CacheCacheStatus != `hit` | CacheCacheStatus != `stale` | CacheCacheStatus != `revalidated` | unwrap EdgeResponseBytes [$__auto]))",
+              "legendFormat": "{{ClientRequestHost}}",
+              "refId": "A",
               "queryType": "range"
             }
           ],
-          "description": "Total bandwidth: inbound (client request bytes) and outbound (edge response body bytes). Stacked to show the ratio of upload vs download traffic."
+          "description": "Bytes pulled from origin to Cloudflare per host (cache misses only). Not charged by Cloudflare, but may incur egress costs from your origin provider (AWS, GCP, etc). Filtered to CacheCacheStatus != hit/stale/revalidated."
         },
         {
           "datasource": {
@@ -20765,7 +20715,38 @@
               },
               "unit": "bytes"
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "CF \u2192 Eyeball (charged)"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "blue",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Origin \u2192 CF (informational)"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "orange",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
             "h": 8,
@@ -20773,12 +20754,12 @@
             "x": 12,
             "y": 401
           },
-          "id": 124,
+          "id": 125,
           "options": {
             "legend": {
               "calcs": [
-                "mean",
-                "lastNotNull"
+                "sum",
+                "mean"
               ],
               "displayMode": "table",
               "placement": "bottom"
@@ -20788,7 +20769,7 @@
               "sort": "desc"
             }
           },
-          "title": "Response Size by Host (avg)",
+          "title": "CF \u2192 Eyeball vs Origin \u2192 CF (total)",
           "type": "timeseries",
           "targets": [
             {
@@ -20796,13 +20777,23 @@
                 "type": "loki",
                 "uid": "${DS_LOKI}"
               },
-              "expr": "avg by (ClientRequestHost) (avg_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseBodyBytes, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeResponseBodyBytes [$__auto]))",
-              "legendFormat": "{{ClientRequestHost}}",
+              "expr": "sum(sum_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseBytes, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | unwrap EdgeResponseBytes [$__auto]))",
+              "legendFormat": "CF \u2192 Eyeball (charged)",
               "refId": "A",
+              "queryType": "range"
+            },
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${DS_LOKI}"
+              },
+              "expr": "sum(sum_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json CacheCacheStatus, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, EdgeResponseBytes, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | CacheCacheStatus != `` | CacheCacheStatus != `hit` | CacheCacheStatus != `stale` | CacheCacheStatus != `revalidated` | unwrap EdgeResponseBytes [$__auto]))",
+              "legendFormat": "Origin \u2192 CF (informational)",
+              "refId": "B",
               "queryType": "range"
             }
           ],
-          "description": "Average response body size per zone. Identifies which zones serve the largest payloads."
+          "description": "Comparison of total bandwidth: CF\u2192Eyeball (EdgeResponseBytes, what Cloudflare charges) vs Origin\u2192CF (cache misses only, what your origin provider may charge for egress). The gap between the lines is bandwidth saved by caching."
         }
       ],
       "title": "Request & Response Size",
@@ -20817,7 +20808,7 @@
         "x": 0,
         "y": 409
       },
-      "id": 125,
+      "id": 126,
       "panels": [
         {
           "datasource": {
@@ -20955,7 +20946,7 @@
             "x": 0,
             "y": 410
           },
-          "id": 126,
+          "id": 127,
           "options": {
             "legend": {
               "calcs": [
@@ -21046,7 +21037,7 @@
             "x": 8,
             "y": 410
           },
-          "id": 127,
+          "id": 128,
           "options": {
             "legend": {
               "calcs": [
@@ -21147,7 +21138,7 @@
             "x": 16,
             "y": 410
           },
-          "id": 128,
+          "id": 129,
           "options": {
             "legend": {
               "calcs": [
@@ -21248,7 +21239,7 @@
             "x": 0,
             "y": 418
           },
-          "id": 129,
+          "id": 130,
           "options": {
             "legend": {
               "calcs": [
@@ -21339,7 +21330,7 @@
             "x": 12,
             "y": 418
           },
-          "id": 130,
+          "id": 131,
           "options": {
             "legend": {
               "calcs": [
@@ -21430,7 +21421,7 @@
             "x": 18,
             "y": 418
           },
-          "id": 131,
+          "id": 132,
           "options": {
             "legend": {
               "calcs": [
@@ -21521,7 +21512,7 @@
             "x": 0,
             "y": 426
           },
-          "id": 132,
+          "id": 133,
           "options": {
             "legend": {
               "calcs": [
@@ -21625,7 +21616,7 @@
             "x": 8,
             "y": 426
           },
-          "id": 133,
+          "id": 134,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -21729,7 +21720,7 @@
             "x": 16,
             "y": 426
           },
-          "id": 134,
+          "id": 135,
           "options": {
             "legend": {
               "calcs": [
