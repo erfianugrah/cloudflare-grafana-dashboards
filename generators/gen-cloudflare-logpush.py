@@ -998,6 +998,51 @@ panels.append(table_panel(pid, "Bot Detection Tags Detail",
     desc="Detailed bot detection signals. BotDetectionTags provides granular information about why a request was classified as bot traffic.")); pid += 1
 y += 8
 
+# Bot Detection IDs — maps numeric IDs to known Cloudflare detection types
+_BOT_DETECTION_ID_MAPPINGS = {
+    # Account Takeover
+    "201326592": {"text": "201326592 — ATO: Login Failures", "index": 0},
+    "201326593": {"text": "201326593 — ATO: Login Traffic", "index": 1},
+    "201326598": {"text": "201326598 — ATO: Dynamic Threshold", "index": 2},
+    # Scraping
+    "50331648": {"text": "50331648 — Scraping: ASN Behavior", "index": 3},
+    "50331649": {"text": "50331649 — Scraping: JA4 Behavior", "index": 4},
+    # Additional
+    "50331651": {"text": "50331651 — Residential Proxy", "index": 5},
+    # AI Crawlers (from CF docs)
+    "123815556": {"text": "123815556 — GPTBot (OpenAI)", "index": 6},
+    "132995013": {"text": "132995013 — ChatGPT-User (OpenAI)", "index": 7},
+    "126255384": {"text": "126255384 — OAI-SearchBot (OpenAI)", "index": 8},
+    "33554461": {"text": "33554461 — Bingbot (Microsoft)", "index": 9},
+    "117479730": {"text": "117479730 — Bingbot (Microsoft)", "index": 10},
+    "33563853": {"text": "33563853 — Bytespider (ByteDance)", "index": 11},
+    "133621792": {"text": "133621792 — CCBot (Common Crawl)", "index": 12},
+    "33563855": {"text": "33563855 — CCBot (Common Crawl)", "index": 13},
+    "124581738": {"text": "124581738 — Meta-ExternalAgent", "index": 14},
+    "33563982": {"text": "33563982 — Meta-ExternalAgent", "index": 15},
+    "132272919": {"text": "132272919 — Meta-ExternalFetcher", "index": 16},
+    "33563980": {"text": "33563980 — Meta-ExternalFetcher", "index": 17},
+    "33563972": {"text": "33563972 — FacebookBot (Meta)", "index": 18},
+    "120424214": {"text": "120424214 — Applebot (Apple)", "index": 19},
+    "33563845": {"text": "33563845 — Applebot (Apple)", "index": 20},
+    "118601807": {"text": "118601807 — Amazonbot (Amazon)", "index": 21},
+    "33563839": {"text": "33563839 — Amazonbot (Amazon)", "index": 22},
+    "126666910": {"text": "126666910 — DuckAssistBot (DuckDuckGo)", "index": 23},
+    "33564037": {"text": "33564037 — DuckAssistBot (DuckDuckGo)", "index": 24},
+    "128950951": {"text": "128950951 — MistralAI-User (Mistral)", "index": 25},
+    "33564323": {"text": "33564323 — MistralAI-User (Mistral)", "index": 26},
+    "33554817": {"text": "33554817 — Heuristic Detection", "index": 27},
+}
+
+panels.append(table_panel(pid, "Bot Detection IDs",
+    f'topk(25, sum by (BotDetectionIDs) (count_over_time({http("BotDetectionIDs")} | BotDetectionIDs != `` | BotDetectionIDs != `[]` [$__range])))',
+    "{{BotDetectionIDs}}", 0, y, w=24,
+    extra_overrides=[{"matcher": {"id": "byName", "options": "BotDetectionIDs"}, "properties": [
+        {"id": "mappings", "value": [{"type": "value", "options": _BOT_DETECTION_ID_MAPPINGS}]}
+    ]}],
+    desc="Bot Management detection IDs triggered on requests. Maps to specific detection types: Account Takeover (201326xxx), Scraping (50331648/49), Residential Proxy (50331651), AI Crawlers, and Heuristic detections. Use these IDs in custom WAF rules with cf.bot_management.detection_ids.")); pid += 1
+y += 8
+
 panels.append(table_panel(pid, "Top JA4 TLS Fingerprints",
     f'approx_topk(25, sum by (JA4) (count_over_time({http()} | JA4 != `` [$__range])))',
     "{{JA4}}", 0, y, w=12,
@@ -1007,6 +1052,76 @@ panels.append(table_panel(pid, "Top JA3 Hashes",
     f'approx_topk(25, sum by (JA3Hash) (count_over_time({http("JA3Hash")} | JA3Hash != `` [$__range])))',
     "{{JA3Hash}}", 12, y, w=12,
     desc="Top JA3 TLS fingerprint hashes. Legacy fingerprinting method (predecessor to JA4). Useful for identifying known malicious TLS implementations.")); pid += 1
+y += 8
+
+# ============================================================
+# ROW: Request Rate Analysis
+# ============================================================
+panels.append(row(pid, "Request Rate Analysis", y, desc="Request velocity and burst detection. Mirrors Cloudflare's rate limiting request rate model — per-IP, per-path, per-ASN, and per-colo request rates. Use these panels to identify traffic patterns that rate limiting rules are designed to catch.")); pid += 1; y += 1
+
+panels.append(ts_panel(pid, "Requests/sec by IP (Top 10)", [
+    t(f"topk(10, sum by (ClientIP) (rate({http()} [$__auto])))", "{{ClientIP}}")
+], 0, y, unit="reqps", stack=False, fill=10,
+    desc="Per-IP request rate (requests/second). Identifies IPs sending traffic at high velocity. Cloudflare rate limiting counters track per-IP rates — this shows what those counters see.")); pid += 1
+
+panels.append(ts_panel(pid, "Requests/sec by Path (Top 10)", [
+    t(f"topk(10, sum by (ClientRequestPath) (rate({http()} [$__auto])))", "{{ClientRequestPath}}")
+], 12, y, unit="reqps", stack=False, fill=10,
+    desc="Per-path request rate. Identifies endpoints receiving the highest request velocity. Useful for tuning rate limiting rule thresholds per endpoint.")); pid += 1
+y += 8
+
+panels.append(ts_panel(pid, "Requests/sec by ASN (Top 10)", [
+    t(f"topk(10, sum by (ClientASN) (rate({http()} [$__auto])))", "AS{{ClientASN}}")
+], 0, y, unit="reqps", stack=False, fill=10,
+    desc="Per-ASN request rate. Identifies networks sending traffic at high velocity. ASN is a common rate limiting characteristic for mitigating distributed attacks from a single network.")); pid += 1
+
+panels.append(ts_panel(pid, "Requests/sec by Edge Colo (Top 10)", [
+    t(f"topk(10, sum by (EdgeColoCode) (rate({http()} [$__auto])))", "{{EdgeColoCode}}")
+], 12, y, unit="reqps", stack=False, fill=10,
+    desc="Per-datacenter request rate. Cloudflare rate limiting counters are per-colo (not global). A rate limit of 100 req/10s means 100 per colo, so total allowed traffic = rate × number of active colos.")); pid += 1
+y += 8
+
+panels.append(table_panel(pid, "Top IPs by Peak Request Rate",
+    f"topk(25, max by (ClientIP) (rate({http()} [$__auto])))",
+    "{{ClientIP}}", 0, y, w=8,
+    extra_overrides=[
+        {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [
+            {"id": "displayName", "value": "Peak req/s"},
+            {"id": "unit", "value": "reqps"},
+            {"id": "custom.width", "value": 120},
+            {"id": "custom.cellOptions", "value": {"mode": "basic", "type": "gauge", "valueDisplayMode": "text"}},
+        ]},
+        {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.hidden", "value": True}]},
+    ],
+    desc="IPs with the highest peak request rate during the time range. These are the strongest candidates for rate limiting rules.")); pid += 1
+
+panels.append(table_panel(pid, "Top Paths by Peak Request Rate",
+    f"topk(25, max by (ClientRequestPath) (rate({http()} [$__auto])))",
+    "{{ClientRequestPath}}", 8, y, w=8,
+    extra_overrides=[
+        {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [
+            {"id": "displayName", "value": "Peak req/s"},
+            {"id": "unit", "value": "reqps"},
+            {"id": "custom.width", "value": 120},
+            {"id": "custom.cellOptions", "value": {"mode": "basic", "type": "gauge", "valueDisplayMode": "text"}},
+        ]},
+        {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.hidden", "value": True}]},
+    ],
+    desc="Paths with the highest peak request rate. Use to set per-endpoint rate limiting thresholds — a login endpoint should have a much lower threshold than a static asset path.")); pid += 1
+
+panels.append(table_panel(pid, "Top JA4 by Peak Request Rate",
+    f"topk(25, max by (JA4) (rate({http()} | JA4 != `` [$__auto])))",
+    "{{JA4}}", 16, y, w=8,
+    extra_overrides=[
+        {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [
+            {"id": "displayName", "value": "Peak req/s"},
+            {"id": "unit", "value": "reqps"},
+            {"id": "custom.width", "value": 120},
+            {"id": "custom.cellOptions", "value": {"mode": "basic", "type": "gauge", "valueDisplayMode": "text"}},
+        ]},
+        {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.hidden", "value": True}]},
+    ],
+    desc="TLS fingerprints with the highest peak request rate. JA4 is a rate limiting characteristic — same TLS stack = same fingerprint regardless of IP rotation.")); pid += 1
 y += 8
 
 # ============================================================

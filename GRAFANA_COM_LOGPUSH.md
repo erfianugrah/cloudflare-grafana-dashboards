@@ -1,6 +1,6 @@
 # Cloudflare Logpush Dashboard
 
-Comprehensive analytics dashboard for Cloudflare Logpush data stored in Loki. **114 panels across 11 sections** covering HTTP traffic, cache performance, security/firewall events, API & rate limiting, WAF attack analysis, threat intelligence, bot detection, request/response sizing, and Workers.
+Comprehensive analytics dashboard for Cloudflare Logpush data stored in Loki. **122 panels across 12 sections** covering HTTP traffic, cache performance, security/firewall events, API & rate limiting, WAF attack analysis, threat intelligence, bot detection, request rate analysis, request/response sizing, and Workers.
 
 8 template variable filters (zone, host, path, IP, country, JA4, ASN, colo) for deep drill-down. Every panel includes a description tooltip.
 
@@ -37,8 +37,11 @@ WAF attack score buckets (high/medium/low risk), attack type breakdown (SQLi/XSS
 ### Threat Intelligence (9 panels)
 Leaked credential check results, fraud detection signals, top talkers by IP, suspicious user agents (bot score < 30), fraud detection tags/IDs, top client regions (subnational ISO 3166-2), firewall event request URIs (path + query string), geo anomaly on sensitive paths.
 
-### Bot Analysis (8 panels)
-Bot score distribution (bot/possibly-bot/human), bot score source engine (ML/Heuristics/JS Fingerprinting), verified bot categories, JS detection pass/fail, bot tags distribution, bot detection tags detail, top JA4 TLS fingerprints, top JA3 hashes.
+### Bot Analysis (9 panels)
+Bot score distribution (bot/possibly-bot/human), bot score source engine (ML/Heuristics/JS Fingerprinting), verified bot categories, JS detection pass/fail, bot tags distribution, bot detection tags detail, bot detection IDs (account takeover, scraping, residential proxy, AI crawlers — with value mappings), top JA4 TLS fingerprints, top JA3 hashes.
+
+### Request Rate Analysis (7 panels)
+Request velocity and burst detection — our version of Cloudflare's rate limiting request rate model. Requests/sec by IP, path, ASN, and edge colo (rate limiting counters are per-colo). Burst detection tables showing top IPs, paths, and JA4 fingerprints by peak request rate.
 
 ### Request & Response Size (6 panels)
 Client request bytes (avg/p95), edge response body bytes (avg/p95), largest uploads by path (>10KB), largest responses by path (>100KB), total bandwidth (inbound + outbound stacked), response size by host.

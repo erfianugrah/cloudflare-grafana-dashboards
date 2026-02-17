@@ -18746,6 +18746,253 @@
                     "value": true
                   }
                 ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "BotDetectionIDs"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "201326592": {
+                            "text": "201326592 \u2014 ATO: Login Failures",
+                            "index": 0
+                          },
+                          "201326593": {
+                            "text": "201326593 \u2014 ATO: Login Traffic",
+                            "index": 1
+                          },
+                          "201326598": {
+                            "text": "201326598 \u2014 ATO: Dynamic Threshold",
+                            "index": 2
+                          },
+                          "50331648": {
+                            "text": "50331648 \u2014 Scraping: ASN Behavior",
+                            "index": 3
+                          },
+                          "50331649": {
+                            "text": "50331649 \u2014 Scraping: JA4 Behavior",
+                            "index": 4
+                          },
+                          "50331651": {
+                            "text": "50331651 \u2014 Residential Proxy",
+                            "index": 5
+                          },
+                          "123815556": {
+                            "text": "123815556 \u2014 GPTBot (OpenAI)",
+                            "index": 6
+                          },
+                          "132995013": {
+                            "text": "132995013 \u2014 ChatGPT-User (OpenAI)",
+                            "index": 7
+                          },
+                          "126255384": {
+                            "text": "126255384 \u2014 OAI-SearchBot (OpenAI)",
+                            "index": 8
+                          },
+                          "33554461": {
+                            "text": "33554461 \u2014 Bingbot (Microsoft)",
+                            "index": 9
+                          },
+                          "117479730": {
+                            "text": "117479730 \u2014 Bingbot (Microsoft)",
+                            "index": 10
+                          },
+                          "33563853": {
+                            "text": "33563853 \u2014 Bytespider (ByteDance)",
+                            "index": 11
+                          },
+                          "133621792": {
+                            "text": "133621792 \u2014 CCBot (Common Crawl)",
+                            "index": 12
+                          },
+                          "33563855": {
+                            "text": "33563855 \u2014 CCBot (Common Crawl)",
+                            "index": 13
+                          },
+                          "124581738": {
+                            "text": "124581738 \u2014 Meta-ExternalAgent",
+                            "index": 14
+                          },
+                          "33563982": {
+                            "text": "33563982 \u2014 Meta-ExternalAgent",
+                            "index": 15
+                          },
+                          "132272919": {
+                            "text": "132272919 \u2014 Meta-ExternalFetcher",
+                            "index": 16
+                          },
+                          "33563980": {
+                            "text": "33563980 \u2014 Meta-ExternalFetcher",
+                            "index": 17
+                          },
+                          "33563972": {
+                            "text": "33563972 \u2014 FacebookBot (Meta)",
+                            "index": 18
+                          },
+                          "120424214": {
+                            "text": "120424214 \u2014 Applebot (Apple)",
+                            "index": 19
+                          },
+                          "33563845": {
+                            "text": "33563845 \u2014 Applebot (Apple)",
+                            "index": 20
+                          },
+                          "118601807": {
+                            "text": "118601807 \u2014 Amazonbot (Amazon)",
+                            "index": 21
+                          },
+                          "33563839": {
+                            "text": "33563839 \u2014 Amazonbot (Amazon)",
+                            "index": 22
+                          },
+                          "126666910": {
+                            "text": "126666910 \u2014 DuckAssistBot (DuckDuckGo)",
+                            "index": 23
+                          },
+                          "33564037": {
+                            "text": "33564037 \u2014 DuckAssistBot (DuckDuckGo)",
+                            "index": 24
+                          },
+                          "128950951": {
+                            "text": "128950951 \u2014 MistralAI-User (Mistral)",
+                            "index": 25
+                          },
+                          "33564323": {
+                            "text": "33564323 \u2014 MistralAI-User (Mistral)",
+                            "index": 26
+                          },
+                          "33554817": {
+                            "text": "33554817 \u2014 Heuristic Detection",
+                            "index": 27
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 343
+          },
+          "id": 107,
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            },
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Count"
+              }
+            ]
+          },
+          "title": "Bot Detection IDs",
+          "type": "table",
+          "transformations": [
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Value #A",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${DS_LOKI}"
+              },
+              "expr": "topk(25, sum by (BotDetectionIDs) (count_over_time({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json BotDetectionIDs, ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | BotDetectionIDs != `` | BotDetectionIDs != `[]` [$__range])))",
+              "legendFormat": "{{BotDetectionIDs}}",
+              "refId": "A",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "description": "Bot Management detection IDs triggered on requests. Maps to specific detection types: Account Takeover (201326xxx), Scraping (50331648/49), Residential Proxy (50331651), AI Crawlers, and Heuristic detections. Use these IDs in custom WAF rules with cf.bot_management.detection_ids."
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #A"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 100
+                  },
+                  {
+                    "id": "displayName",
+                    "value": "Count"
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "mode": "basic",
+                      "type": "gauge",
+                      "valueDisplayMode": "text"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
               }
             ]
           },
@@ -18753,9 +19000,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 343
+            "y": 351
           },
-          "id": 107,
+          "id": 108,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -18870,9 +19117,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 343
+            "y": 351
           },
-          "id": 108,
+          "id": 109,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -18926,9 +19173,859 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 351
+        "y": 359
       },
-      "id": 109,
+      "id": 110,
+      "panels": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 360
+          },
+          "id": 111,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "title": "Requests/sec by IP (Top 10)",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${DS_LOKI}"
+              },
+              "expr": "topk(10, sum by (ClientIP) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto])))",
+              "legendFormat": "{{ClientIP}}",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "description": "Per-IP request rate (requests/second). Identifies IPs sending traffic at high velocity. Cloudflare rate limiting counters track per-IP rates \u2014 this shows what those counters see."
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 360
+          },
+          "id": 112,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "title": "Requests/sec by Path (Top 10)",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${DS_LOKI}"
+              },
+              "expr": "topk(10, sum by (ClientRequestPath) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto])))",
+              "legendFormat": "{{ClientRequestPath}}",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "description": "Per-path request rate. Identifies endpoints receiving the highest request velocity. Useful for tuning rate limiting rule thresholds per endpoint."
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 368
+          },
+          "id": 113,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "title": "Requests/sec by ASN (Top 10)",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${DS_LOKI}"
+              },
+              "expr": "topk(10, sum by (ClientASN) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto])))",
+              "legendFormat": "AS{{ClientASN}}",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "description": "Per-ASN request rate. Identifies networks sending traffic at high velocity. ASN is a common rate limiting characteristic for mitigating distributed attacks from a single network."
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 368
+          },
+          "id": 114,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "title": "Requests/sec by Edge Colo (Top 10)",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${DS_LOKI}"
+              },
+              "expr": "topk(10, sum by (EdgeColoCode) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto])))",
+              "legendFormat": "{{EdgeColoCode}}",
+              "refId": "A",
+              "queryType": "range"
+            }
+          ],
+          "description": "Per-datacenter request rate. Cloudflare rate limiting counters are per-colo (not global). A rate limit of 100 req/10s means 100 per colo, so total allowed traffic = rate \u00d7 number of active colos."
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #A"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 100
+                  },
+                  {
+                    "id": "displayName",
+                    "value": "Count"
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "mode": "basic",
+                      "type": "gauge",
+                      "valueDisplayMode": "text"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #A"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "Peak req/s"
+                  },
+                  {
+                    "id": "unit",
+                    "value": "reqps"
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "mode": "basic",
+                      "type": "gauge",
+                      "valueDisplayMode": "text"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 376
+          },
+          "id": 115,
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            },
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Count"
+              }
+            ]
+          },
+          "title": "Top IPs by Peak Request Rate",
+          "type": "table",
+          "transformations": [
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Value #A",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${DS_LOKI}"
+              },
+              "expr": "topk(25, max by (ClientIP) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto])))",
+              "legendFormat": "{{ClientIP}}",
+              "refId": "A",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "description": "IPs with the highest peak request rate during the time range. These are the strongest candidates for rate limiting rules."
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #A"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 100
+                  },
+                  {
+                    "id": "displayName",
+                    "value": "Count"
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "mode": "basic",
+                      "type": "gauge",
+                      "valueDisplayMode": "text"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #A"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "Peak req/s"
+                  },
+                  {
+                    "id": "unit",
+                    "value": "reqps"
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "mode": "basic",
+                      "type": "gauge",
+                      "valueDisplayMode": "text"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 376
+          },
+          "id": 116,
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            },
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Count"
+              }
+            ]
+          },
+          "title": "Top Paths by Peak Request Rate",
+          "type": "table",
+          "transformations": [
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Value #A",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${DS_LOKI}"
+              },
+              "expr": "topk(25, max by (ClientRequestPath) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" [$__auto])))",
+              "legendFormat": "{{ClientRequestPath}}",
+              "refId": "A",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "description": "Paths with the highest peak request rate. Use to set per-endpoint rate limiting thresholds \u2014 a login endpoint should have a much lower threshold than a static asset path."
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #A"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 100
+                  },
+                  {
+                    "id": "displayName",
+                    "value": "Count"
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "mode": "basic",
+                      "type": "gauge",
+                      "valueDisplayMode": "text"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value #A"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "Peak req/s"
+                  },
+                  {
+                    "id": "unit",
+                    "value": "reqps"
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "mode": "basic",
+                      "type": "gauge",
+                      "valueDisplayMode": "text"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 376
+          },
+          "id": 117,
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            },
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Count"
+              }
+            ]
+          },
+          "title": "Top JA4 by Peak Request Rate",
+          "type": "table",
+          "transformations": [
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Value #A",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ],
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${DS_LOKI}"
+              },
+              "expr": "topk(25, max by (JA4) (rate({job=\"cloudflare-logpush\", dataset=\"http_requests\"} | json ClientASN, ClientCountry, ClientIP, ClientRequestHost, ClientRequestPath, EdgeColoCode, JA4, ZoneName | ZoneName =~ \"$zone\" | ClientRequestHost =~ \"$host\" | ClientCountry =~ \"$country\" | ClientRequestPath =~ \"$path\" | ClientIP =~ \"$ip\" | JA4 =~ \"$ja4\" | ClientASN =~ \"$asn\" | EdgeColoCode =~ \"$colo\" | JA4 != `` [$__auto])))",
+              "legendFormat": "{{JA4}}",
+              "refId": "A",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "description": "TLS fingerprints with the highest peak request rate. JA4 is a rate limiting characteristic \u2014 same TLS stack = same fingerprint regardless of IP rotation."
+        }
+      ],
+      "title": "Request Rate Analysis",
+      "type": "row",
+      "description": "Request velocity and burst detection. Mirrors Cloudflare's rate limiting request rate model \u2014 per-IP, per-path, per-ASN, and per-colo request rates. Use these panels to identify traffic patterns that rate limiting rules are designed to catch."
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 384
+      },
+      "id": 118,
       "panels": [
         {
           "datasource": {
@@ -19019,9 +20116,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 352
+            "y": 385
           },
-          "id": 110,
+          "id": 119,
           "options": {
             "legend": {
               "calcs": [
@@ -19151,9 +20248,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 352
+            "y": 385
           },
-          "id": 111,
+          "id": 120,
           "options": {
             "legend": {
               "calcs": [
@@ -19293,9 +20390,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 360
+            "y": 393
           },
-          "id": 112,
+          "id": 121,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -19438,9 +20535,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 360
+            "y": 393
           },
-          "id": 113,
+          "id": 122,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -19573,9 +20670,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 368
+            "y": 401
           },
-          "id": 114,
+          "id": 123,
           "options": {
             "legend": {
               "calcs": [
@@ -19674,9 +20771,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 368
+            "y": 401
           },
-          "id": 115,
+          "id": 124,
           "options": {
             "legend": {
               "calcs": [
@@ -19718,9 +20815,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 376
+        "y": 409
       },
-      "id": 116,
+      "id": 125,
       "panels": [
         {
           "datasource": {
@@ -19856,9 +20953,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 377
+            "y": 410
           },
-          "id": 117,
+          "id": 126,
           "options": {
             "legend": {
               "calcs": [
@@ -19947,9 +21044,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 377
+            "y": 410
           },
-          "id": 118,
+          "id": 127,
           "options": {
             "legend": {
               "calcs": [
@@ -20048,9 +21145,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 377
+            "y": 410
           },
-          "id": 119,
+          "id": 128,
           "options": {
             "legend": {
               "calcs": [
@@ -20149,9 +21246,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 385
+            "y": 418
           },
-          "id": 120,
+          "id": 129,
           "options": {
             "legend": {
               "calcs": [
@@ -20240,9 +21337,9 @@
             "h": 8,
             "w": 6,
             "x": 12,
-            "y": 385
+            "y": 418
           },
-          "id": 121,
+          "id": 130,
           "options": {
             "legend": {
               "calcs": [
@@ -20331,9 +21428,9 @@
             "h": 8,
             "w": 6,
             "x": 18,
-            "y": 385
+            "y": 418
           },
-          "id": 122,
+          "id": 131,
           "options": {
             "legend": {
               "calcs": [
@@ -20422,9 +21519,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 393
+            "y": 426
           },
-          "id": 123,
+          "id": 132,
           "options": {
             "legend": {
               "calcs": [
@@ -20526,9 +21623,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 393
+            "y": 426
           },
-          "id": 124,
+          "id": 133,
           "options": {
             "showHeader": true,
             "cellHeight": "sm",
@@ -20630,9 +21727,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 393
+            "y": 426
           },
-          "id": 125,
+          "id": 134,
           "options": {
             "legend": {
               "calcs": [

@@ -3,7 +3,7 @@
 Two comprehensive Grafana dashboards for monitoring Cloudflare infrastructure:
 
 1. **Cloudflare Tunnel (cloudflared)** &mdash; 58 panels across 9 sections, powered by Prometheus
-2. **Cloudflare Logpush** &mdash; 114 panels across 11 sections, powered by Loki
+2. **Cloudflare Logpush** &mdash; 122 panels across 12 sections, powered by Loki
 
 Both dashboards are available as importable JSON and as Python generators for customization.
 
@@ -430,7 +430,8 @@ After import, edit the **Zone** and **Host** template variables to add your own 
 | **API & Rate Limiting** | 9 | Rate limiting events, L7 DDoS mitigations, API Shield events, Bot Management events, rate limited paths/IPs, security product coverage, WAF rule types (managed vs custom), IP/country/ASN access rules |
 | **WAF Attack Analysis** | 6 | WAF score buckets, attack type breakdown (SQLi/XSS/RCE), unmitigated attacks, security rule efficacy, security actions on HTTP, client IP classification |
 | **Threat Intelligence** | 9 | Leaked credentials, fraud detection, top talkers, suspicious UAs, fraud detection tags/IDs, top client regions (subnational), firewall request URIs, geo anomaly on sensitive paths |
-| **Bot Analysis** | 8 | Bot score distribution, score source engine, verified bot categories, JS detection, bot tags, bot detection tags, top JA4 fingerprints, top JA3 hashes |
+| **Bot Analysis** | 9 | Bot score distribution, score source engine, verified bot categories, JS detection, bot tags, bot detection tags, bot detection IDs (ATO/scraping/residential proxy/AI crawlers with value mappings), top JA4 fingerprints, top JA3 hashes |
+| **Request Rate Analysis** | 7 | Requests/sec by IP, path, ASN, and edge colo. Burst detection tables: top IPs, paths, and JA4 fingerprints by peak request rate. Our version of Cloudflare's rate limiting request rate model. |
 | **Request & Response Size** | 6 | Client request bytes (avg/p95), edge response body bytes (avg/p95), largest uploads/responses by path, total bandwidth (stacked), response size by host |
 | **Workers** | 9 | Outcomes, CPU time, wall time, invocations by script, script versions, subrequest count, event types, exceptions table, status by script |
 
